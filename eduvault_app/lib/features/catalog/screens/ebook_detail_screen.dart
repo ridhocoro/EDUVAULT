@@ -1,0 +1,265 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../auth/screens/login_screen.dart';
+import '../../order/screens/checkout_screen.dart';
+import '../models/ebook_model.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/constants/api_constants.dart';
+
+class EbookDetailScreen extends ConsumerStatefulWidget {
+  final String slug;
+  const EbookDetailScreen({super.key, required this.slug});
+
+  @override
+  ConsumerState<EbookDetailScreen> createState() => _EbookDetailScreenState();
+}
+
+class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
+  EbookModel? _ebook;
+  bool _owned = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchDetail();
+  }
+
+  Future<void> _fetchDetail() async {
+    try {
+      final res = await ApiService.dio.get('${ApiConstants.ebooks}/${widget.slug}');
+      setState(() {
+        _ebook  = EbookModel.fromJson(res.data['ebook']);
+        _owned  = res.data['owned'] ?? false;
+        _loading = false;
+      });
+    } catch (_) {
+      setState(() => _loading = false);
+    }
+  }
+
+  void _handleBuy() {
+    final auth = ref.read(authProvider);
+    if (!auth.isLoggedIn) {
+      Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      ).then((_) {
+        // Setelah balik dari login, cek ulang status
+        if (ref.read(authProvider).isLoggedIn) _handleBuy();
+      });
+      return;
+    }
+    // Lanjut ke checkout
+    Navigator.push(context,
+      MaterialPageRoute(builder: (_) => CheckoutScreen(ebook: _ebook!)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+    if (_ebook == null) {
+      return Scaffold(
+        appBar: AppBar(),
+        body: const Center(child: Text('Buku tidak ditemukan.')),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F7F4),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: const BackButton(color: Color(0xFF1A1A2E)),
+        title: const Text(
+          'Detail Buku',
+          style: TextStyle(color: Color(0xFF1A1A2E), fontSize: 16),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Cover
+            Center(
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: _ebook!.coverUrl != null
+                    ? CachedNetworkImage(
+                        imageUrl: _ebook!.coverUrl!,
+                        height: 220,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        height: 220,
+                        width: 150,
+                        color: const Color(0xFFE1F5EE),
+                        child: const Icon(Icons.menu_book_rounded,
+                            size: 60, color: Color(0xFF1D9E75)),
+                      ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Kategori badge
+            if (_ebook!.category != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE1F5EE),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  _ebook!.category!.name,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF0F6E56),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 10),
+            Text(
+              _ebook!.title,
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A1A2E),
+              ),
+            ),
+            if (_ebook!.author != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'oleh ${_ebook!.author}',
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF5F5E5A),
+                ),
+              ),
+            ],
+
+            const SizedBox(height: 16),
+
+            // Info row
+            Row(
+              children: [
+                _InfoChip(Icons.description_outlined,
+                    '${_ebook!.totalPages} halaman'),
+                const SizedBox(width: 12),
+                if (_ebook!.djkiCertNo != null)
+                  _InfoChip(Icons.verified_outlined, 'HKI Terdaftar'),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // Deskripsi
+            if (_ebook!.description != null) ...[
+              const Text(
+                'Tentang buku ini',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A1A2E),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _ebook!.description!,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF5F5E5A),
+                  height: 1.6,
+                ),
+              ),
+              const SizedBox(height: 100), // ruang untuk bottom button
+            ],
+          ],
+        ),
+      ),
+
+      // Bottom action bar
+      bottomNavigationBar: Container(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: Color(0xFFE8E6DF))),
+        ),
+        child: Row(
+          children: [
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Harga',
+                  style: TextStyle(fontSize: 12, color: Color(0xFF888780)),
+                ),
+                Text(
+                  'Rp ${_ebook!.price.toStringAsFixed(0).replaceAllMapped(
+                        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                        (m) => '${m[1]}.',
+                      )}',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1D9E75),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 20),
+            Expanded(
+              child: SizedBox(
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _owned ? null : _handleBuy,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _owned
+                        ? const Color(0xFF888780)
+                        : const Color(0xFF1D9E75),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    _owned ? 'Sudah dimiliki' : 'Beli Sekarang',
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  const _InfoChip(this.icon, this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: const Color(0xFF888780)),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF888780))),
+      ],
+    );
+  }
+}
