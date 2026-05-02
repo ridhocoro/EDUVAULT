@@ -1,4 +1,6 @@
 <?php
+// app/Http/Controllers/Api/EbookController.php
+// REPLACE file lama dengan file ini
 
 namespace App\Http\Controllers\Api;
 
@@ -9,59 +11,78 @@ use Illuminate\Http\Request;
 
 class EbookController extends Controller
 {
-    // Daftar buku — publik, dengan filter & search
+    /**
+     * Daftar ebook (publik)
+     * Query params:
+     *   - search    : string  → cari di title dan author
+     *   - category  : string  → filter by category slug
+     *   - min_price : number  → harga minimum
+     *   - max_price : number  → harga maksimum
+     *   - sort      : string  → price_asc | price_desc | newest (default: newest)
+     *   - per_page  : int     → default 20
+     */
     public function index(Request $request)
     {
-        $query = Ebook::published()->with('category');
+        $query = Ebook::with('category')->published();
 
-        // Filter by kategori
-        if ($request->category) {
-            $query->whereHas('category', fn($q) =>
-                $q->where('slug', $request->category)
-            );
+        // ── Search ─────────────────────────────────────────────
+        if ($search = $request->query('search')) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('author', 'like', "%{$search}%")
+                  ->orWhere('description', 'like', "%{$search}%");
+            });
         }
 
-        // Search by judul
-        if ($request->search) {
-            $query->where('title', 'like', "%{$request->search}%");
+        // ── Filter kategori ───────────────────────────────────
+        if ($categorySlug = $request->query('category')) {
+            $query->whereHas('category', function ($q) use ($categorySlug) {
+                $q->where('slug', $categorySlug);
+            });
         }
 
-        // Sort
-        $sort = $request->sort ?? 'latest';
+        // ── Filter harga ──────────────────────────────────────
+        if ($request->filled('min_price')) {
+            $query->where('price', '>=', (float) $request->query('min_price'));
+        }
+
+        if ($request->filled('max_price')) {
+            $query->where('price', '<=', (float) $request->query('max_price'));
+        }
+
+        // ── Sort ──────────────────────────────────────────────
+        $sort = $request->query('sort', 'newest');
         match ($sort) {
             'price_asc'  => $query->orderBy('price', 'asc'),
             'price_desc' => $query->orderBy('price', 'desc'),
             default      => $query->latest('published_at'),
         };
 
-        $ebooks = $query->paginate(12);
+        $perPage = min((int) $request->query('per_page', 20), 100);
+        $ebooks = $query->paginate($perPage);
 
         return response()->json($ebooks);
     }
 
-    // Detail buku — publik
-    public function show(Request $request, string $slug)
+    /**
+     * Detail ebook by slug
+     */
+    public function show(string $slug)
     {
-        $ebook = Ebook::published()
-                    ->with('category')
-                    ->where('slug', $slug)
-                    ->firstOrFail();
+        $ebook = Ebook::with('category')
+            ->published()
+            ->where('slug', $slug)
+            ->firstOrFail();
 
-        // Cek apakah user (jika login) sudah punya buku ini
-        $owned = false;
-        if ($request->user()) {
-            $owned = $request->user()->ownsEbook($ebook->id);
-        }
-
-        return response()->json([
-            'ebook' => $ebook,
-            'owned' => $owned,
-        ]);
+        return response()->json($ebook);
     }
 
-    // Daftar kategori
+    /**
+     * Daftar kategori
+     */
     public function categories()
     {
-        return response()->json(Category::all());
+        $categories = Category::orderBy('name')->get();
+        return response()->json($categories);
     }
 }

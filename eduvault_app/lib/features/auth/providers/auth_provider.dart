@@ -1,3 +1,6 @@
+// lib/features/auth/providers/auth_provider.dart
+// REPLACE file lama dengan file ini
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../models/user_model.dart';
@@ -5,7 +8,6 @@ import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/token_storage.dart';
 
-// State untuk auth
 class AuthState {
   final UserModel? user;
   final bool isLoading;
@@ -15,10 +17,15 @@ class AuthState {
 
   bool get isLoggedIn => user != null;
 
-  AuthState copyWith({UserModel? user, bool? isLoading, String? errorMessage}) {
+  AuthState copyWith({
+    UserModel? user,
+    bool? isLoading,
+    String? errorMessage,
+    bool clearUser = false,
+  }) {
     return AuthState(
-      user:         user         ?? this.user,
-      isLoading:    isLoading    ?? this.isLoading,
+      user: clearUser ? null : (user ?? this.user),
+      isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
     );
   }
@@ -29,7 +36,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     _tryAutoLogin();
   }
 
-  // Coba auto-login jika token masih ada
   Future<void> _tryAutoLogin() async {
     final hasToken = await TokenStorage.hasToken();
     if (!hasToken) return;
@@ -62,8 +68,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  /// Dipanggil setelah deeplink OAuth berhasil membawa token
+  Future<bool> loginWithGoogleToken(String token) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      await TokenStorage.saveToken(token);
+      // Ambil data user dari API pakai token ini
+      final res = await ApiService.dio.get(ApiConstants.me);
+      state = state.copyWith(
+        isLoading: false,
+        user: UserModel.fromJson(res.data),
+      );
+      return true;
+    } on DioException catch (e) {
+      await TokenStorage.deleteToken();
+      final msg = e.response?.data?['message'] ?? 'Login Google gagal.';
+      state = state.copyWith(isLoading: false, errorMessage: msg);
+      return false;
+    }
+  }
+
   Future<void> logout() async {
-    try { await ApiService.dio.post(ApiConstants.logout); } catch (_) {}
+    try {
+      await ApiService.dio.post(ApiConstants.logout);
+    } catch (_) {}
     await TokenStorage.deleteToken();
     state = AuthState();
   }

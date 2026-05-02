@@ -1,42 +1,38 @@
 <?php
+// app/Models/User.php
+// REPLACE file lama dengan file ini
 
 namespace App\Models;
 
-use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens;
+    use HasApiTokens, HasFactory, Notifiable;
 
     protected $fillable = [
-        'name', 'email', 'password', 'google_id', 'avatar', 'role',
+        'name',
+        'email',
+        'password',
+        'google_id',   // ← baru (Google OAuth)
+        'avatar',      // ← baru (foto profil Google)
+        'role',
     ];
 
-    protected $hidden = ['password', 'remember_token'];
-
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
+    protected $hidden = [
+        'password',
+        'remember_token',
+        'google_id',   // jangan ekspos ke response
     ];
 
-    // Relasi: user punya banyak orders
-    public function orders()
+    protected function casts(): array
     {
-        return $this->hasMany(Order::class);
-    }
-
-    // Relasi: buku-buku yang dimiliki user (via user_library)
-    public function library()
-    {
-        return $this->belongsToMany(Ebook::class, 'user_library')
-                    ->withPivot('license_type', 'expires_at')
-                    ->withTimestamps();
-    }
-
-    // Cek apakah user sudah punya akses ke ebook tertentu
-    public function ownsEbook(int $ebookId): bool
-    {
-        return $this->library()->where('ebook_id', $ebookId)->exists();
+        return [
+            'email_verified_at' => 'datetime',
+            'password'          => 'hashed',
+        ];
     }
 }

@@ -1,4 +1,6 @@
 <?php
+// app/Http/Controllers/Api/AuthController.php
+// REPLACE file lama dengan file ini
 
 namespace App\Http\Controllers\Api;
 
@@ -30,10 +32,7 @@ class AuthController extends Controller
 
         $token = $user->createToken('eduvault-app')->plainTextToken;
 
-        return response()->json([
-            'user'  => $user,
-            'token' => $token,
-        ], 201);
+        return response()->json(['user' => $user, 'token' => $token], 201);
     }
 
     /**
@@ -54,19 +53,14 @@ class AuthController extends Controller
             ]);
         }
 
-        // Hapus token lama, buat yang baru
         $user->tokens()->delete();
         $token = $user->createToken('eduvault-app')->plainTextToken;
 
-        return response()->json([
-            'user'  => $user,
-            'token' => $token,
-        ]);
+        return response()->json(['user' => $user, 'token' => $token]);
     }
 
     /**
-     * Google OAuth redirect
-     * Arahkan user ke Google login page
+     * Google OAuth — redirect ke halaman login Google
      */
     public function googleRedirect()
     {
@@ -74,49 +68,40 @@ class AuthController extends Controller
             return Socialite::driver('google')->stateless()->redirect();
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Google OAuth not configured properly',
+                'message' => 'Google OAuth belum dikonfigurasi.',
                 'error'   => $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Google OAuth callback
-     * Dipanggil Google setelah user login
+     * Google OAuth callback — dipanggil Google setelah user login
+     * Lalu redirect ke deeplink Flutter: eduvault://auth?token=xxx
      */
     public function googleCallback()
     {
         try {
-            // Ambil data user dari Google
             $googleUser = Socialite::driver('google')->stateless()->user();
 
-            // Cari atau buat user di database
             $user = User::updateOrCreate(
                 ['email' => $googleUser->getEmail()],
                 [
                     'name'      => $googleUser->getName(),
                     'google_id' => $googleUser->getId(),
                     'avatar'    => $googleUser->getAvatar(),
-                    'password'  => null,  // Google OAuth user tidak punya password
+                    // Google user tidak punya password lokal
+                    'password'  => null,
                 ]
             );
 
-            // Hapus token lama, buat yang baru
+            // Buat token Sanctum baru
             $user->tokens()->delete();
             $token = $user->createToken('eduvault-app')->plainTextToken;
 
-            // **OPSI 1: Redirect ke deeplink Flutter (recommended)**
-            // Ini akan buka app Flutter dengan token sudah terisi
+            // Redirect ke deeplink Flutter — app_links akan menangkap ini
             return redirect("eduvault://auth?token={$token}");
 
-            // **OPSI 2: Return JSON (jika pakai webview di app)**
-            // return response()->json([
-            //     'user'  => $user,
-            //     'token' => $token,
-            // ]);
-
         } catch (\Exception $e) {
-            // Jika ada error, redirect ke app dengan error message
             return redirect("eduvault://auth?error=" . urlencode($e->getMessage()));
         }
     }
@@ -135,35 +120,6 @@ class AuthController extends Controller
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
-        
-        return response()->json([
-            'message' => 'Logged out successfully.',
-        ]);
-    }
-
-    /**
-     * Verify token dari deeplink
-     * Dipanggil dari Flutter setelah OAuth redirect
-     */
-    public function verifyToken(Request $request)
-    {
-        $request->validate([
-            'token' => 'required|string',
-        ]);
-
-        try {
-            // Coba autentikasi dengan token
-            $user = $request->user();
-            
-            return response()->json([
-                'user'  => $user,
-                'token' => $request->bearerToken(),
-                'message' => 'Token valid',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Invalid token',
-            ], 401);
-        }
+        return response()->json(['message' => 'Logged out successfully.']);
     }
 }
