@@ -1,4 +1,6 @@
 <?php
+// app/Models/Ebook.php
+// REPLACE file lama dengan file ini
 
 namespace App\Models;
 
@@ -13,21 +15,36 @@ class Ebook extends Model
     ];
 
     protected $casts = [
-        'price' => 'decimal:2',
+        'price'        => 'decimal:2',
         'published_at' => 'datetime',
+        'total_pages'  => 'integer',
     ];
 
-    // Hanya tampilkan buku yang published ke publik
+    // Sembunyikan file_url dari response publik
+    // Admin controller akan expose secara manual via getRawOriginal()
+    protected $hidden = ['file_url'];
+
+    // ── Scopes ──────────────────────────────────────────────────
+
     public function scopePublished($query)
     {
         return $query->where('status', 'published');
     }
+
+    public function scopeActive($query)
+    {
+        return $query->where('status', 'published');
+    }
+
+    // ── Relationships ────────────────────────────────────────────
 
     public function category()
     {
         return $this->belongsTo(Category::class);
     }
 
-    // Jangan ekspos file_url ke response publik
-    protected $hidden = ['file_url'];
+    public function orderItems()
+    {
+        return $this->hasMany(OrderItem::class);
+    }
 }

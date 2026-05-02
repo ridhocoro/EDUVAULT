@@ -30,13 +30,45 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
   Future<void> _fetchDetail() async {
     try {
       final res = await ApiService.dio.get('${ApiConstants.ebooks}/${widget.slug}');
+      final data = res.data;
+
+      // Backend show() mengembalikan object ebook langsung, bukan wrapper {ebook, owned}
+      EbookModel ebook;
+      bool owned = false;
+
+      if (data is Map && data.containsKey('ebook')) {
+        ebook = EbookModel.fromJson(data['ebook'] as Map<String, dynamic>);
+        owned = data['owned'] ?? false;
+      } else {
+        ebook = EbookModel.fromJson(data as Map<String, dynamic>);
+        owned = await _checkOwned(ebook.id);
+      }
+
       setState(() {
-        _ebook  = EbookModel.fromJson(res.data['ebook']);
-        _owned  = res.data['owned'] ?? false;
+        _ebook   = ebook;
+        _owned   = owned;
         _loading = false;
       });
     } catch (_) {
       setState(() => _loading = false);
+    }
+  }
+
+  Future<bool> _checkOwned(int ebookId) async {
+    try {
+      final auth = ref.read(authProvider);
+      if (!auth.isLoggedIn) return false;
+
+      final res = await ApiService.dio.get(ApiConstants.library);
+      final List items = res.data is List
+          ? res.data as List
+          : ((res.data as Map)['data'] as List? ?? []);
+      return items.any((item) {
+        final id = (item as Map)['ebook_id'] ?? (item['ebook'] as Map?)?['id'];
+        return id == ebookId;
+      });
+    } catch (_) {
+      return false;
     }
   }
 

@@ -11,6 +11,7 @@ import '../models/ebook_model.dart';
 import 'ebook_detail_screen.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../library/screens/library_screen.dart';
+import '../../admin/screens/admin_dashboard_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -66,6 +67,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         actions: [
           if (auth.isLoggedIn) ...[
+            // Tombol Admin Panel — hanya tampil untuk role admin
+            if (auth.user?.role == 'admin')
+              IconButton(
+                icon: const Icon(Icons.admin_panel_settings_rounded,
+                    color: Color(0xFF1D9E75)),
+                tooltip: 'Admin Panel',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => const AdminDashboardScreen()),
+                ),
+              ),
             IconButton(
               icon: const Icon(Icons.menu_book_rounded, color: Color(0xFF1D9E75)),
               tooltip: 'Library Saya',

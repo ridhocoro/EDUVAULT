@@ -5,6 +5,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EbookController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\LibraryController;
+use App\Http\Controllers\Api\Admin\DashboardController;
+use App\Http\Controllers\Api\Admin\EbookController as AdminEbookController;
+use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
+use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 
 // ─── Public routes (guest bisa akses) ─────────────────────────────
 Route::prefix('v1')->group(function () {
@@ -33,10 +37,38 @@ Route::prefix('v1')->group(function () {
         Route::get('/orders',            [OrderController::class, 'index']);
         Route::get('/orders/{code}',     [OrderController::class, 'show']);
 
-        // Midtrans webhook (tidak butuh auth tapi butuh signature check)
         // Library user
         Route::get('/library',           [LibraryController::class, 'index']);
         Route::get('/library/{id}/read', [LibraryController::class, 'getReadUrl']);
+
+        // ─── Admin routes (perlu login + role admin) ──────────────
+        Route::middleware('admin')->prefix('admin')->group(function () {
+
+            // Dashboard stats
+            Route::get('/dashboard',                     [DashboardController::class, 'stats']);
+
+            // Ebook CRUD
+            Route::get('/ebooks',                        [AdminEbookController::class, 'index']);
+            Route::post('/ebooks',                       [AdminEbookController::class, 'store']);
+            Route::get('/ebooks/{id}',                   [AdminEbookController::class, 'show']);
+            Route::put('/ebooks/{id}',                   [AdminEbookController::class, 'update']);
+            Route::patch('/ebooks/{id}',                 [AdminEbookController::class, 'update']);
+            Route::delete('/ebooks/{id}',                [AdminEbookController::class, 'destroy']);
+            Route::patch('/ebooks/{id}/deactivate',      [AdminEbookController::class, 'deactivate']);
+            Route::patch('/ebooks/{id}/activate',        [AdminEbookController::class, 'activate']);
+
+            // Category CRUD
+            Route::get('/categories',                    [AdminCategoryController::class, 'index']);
+            Route::post('/categories',                   [AdminCategoryController::class, 'store']);
+            Route::put('/categories/{id}',               [AdminCategoryController::class, 'update']);
+            Route::patch('/categories/{id}',             [AdminCategoryController::class, 'update']);
+            Route::delete('/categories/{id}',            [AdminCategoryController::class, 'destroy']);
+
+            // User management
+            Route::get('/users',                         [AdminUserController::class, 'index']);
+            Route::patch('/users/{id}/promote',          [AdminUserController::class, 'promoteToAdmin']);
+            Route::patch('/users/{id}/demote',           [AdminUserController::class, 'demoteToUser']);
+        });
     });
 });
 
