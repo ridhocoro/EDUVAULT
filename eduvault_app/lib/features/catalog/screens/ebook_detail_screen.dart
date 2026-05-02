@@ -4,7 +4,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../order/screens/checkout_screen.dart';
+import '../../wishlist/providers/wishlist_provider.dart';
 import '../models/ebook_model.dart';
+import '../widgets/reviews_section.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 
@@ -29,10 +31,10 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
 
   Future<void> _fetchDetail() async {
     try {
-      final res = await ApiService.dio.get('${ApiConstants.ebooks}/${widget.slug}');
+      final res =
+          await ApiService.dio.get('${ApiConstants.ebooks}/${widget.slug}');
       final data = res.data;
 
-      // Backend show() mengembalikan object ebook langsung, bukan wrapper {ebook, owned}
       EbookModel ebook;
       bool owned = false;
 
@@ -49,6 +51,12 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
         _owned   = owned;
         _loading = false;
       });
+
+      // Load wishlist state jika sudah login
+      final auth = ref.read(authProvider);
+      if (auth.isLoggedIn) {
+        await ref.read(wishlistProvider.notifier).loadWishlist();
+      }
     } catch (_) {
       setState(() => _loading = false);
     }
@@ -64,7 +72,8 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
           ? res.data as List
           : ((res.data as Map)['data'] as List? ?? []);
       return items.any((item) {
-        final id = (item as Map)['ebook_id'] ?? (item['ebook'] as Map?)?['id'];
+        final id =
+            (item as Map)['ebook_id'] ?? (item['ebook'] as Map?)?['id'];
         return id == ebookId;
       });
     } catch (_) {
@@ -75,24 +84,39 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
   void _handleBuy() {
     final auth = ref.read(authProvider);
     if (!auth.isLoggedIn) {
-      Navigator.push(context,
+      Navigator.push(
+        context,
         MaterialPageRoute(builder: (_) => const LoginScreen()),
       ).then((_) {
-        // Setelah balik dari login, cek ulang status
         if (ref.read(authProvider).isLoggedIn) _handleBuy();
       });
       return;
     }
-    // Lanjut ke checkout
-    Navigator.push(context,
+    Navigator.push(
+      context,
       MaterialPageRoute(builder: (_) => CheckoutScreen(ebook: _ebook!)),
     );
+  }
+
+  Future<void> _toggleWishlist() async {
+    final auth = ref.read(authProvider);
+    if (!auth.isLoggedIn) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      );
+      return;
+    }
+    await ref
+        .read(wishlistProvider.notifier)
+        .toggleWishlist(_ebook!.id);
   }
 
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      return const Scaffold(
+          body: Center(child: CircularProgressIndicator()));
     }
     if (_ebook == null) {
       return Scaffold(
@@ -100,6 +124,10 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
         body: const Center(child: Text('Buku tidak ditemukan.')),
       );
     }
+
+    final wishlistState  = ref.watch(wishlistProvider);
+    final inWishlist     = wishlistState.isInWishlist(_ebook!.id);
+    final auth           = ref.watch(authProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F7F4),
@@ -111,6 +139,21 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
           'Detail Buku',
           style: TextStyle(color: Color(0xFF1A1A2E), fontSize: 16),
         ),
+        actions: [
+          // Wishlist bookmark icon
+          IconButton(
+            onPressed: _toggleWishlist,
+            icon: Icon(
+              inWishlist
+                  ? Icons.bookmark_rounded
+                  : Icons.bookmark_border_rounded,
+              color: inWishlist
+                  ? const Color(0xFF1D9E75)
+                  : const Color(0xFF1A1A2E),
+            ),
+            tooltip: inWishlist ? 'Hapus dari Wishlist' : 'Simpan ke Wishlist',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -141,7 +184,8 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
             // Kategori badge
             if (_ebook!.category != null)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE1F5EE),
                   borderRadius: BorderRadius.circular(20),
@@ -170,9 +214,7 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
               Text(
                 'oleh ${_ebook!.author}',
                 style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF5F5E5A),
-                ),
+                    fontSize: 13, color: Color(0xFF5F5E5A)),
               ),
             ],
 
@@ -210,8 +252,19 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
                   height: 1.6,
                 ),
               ),
-              const SizedBox(height: 100), // ruang untuk bottom button
             ],
+
+            const SizedBox(height: 28),
+            const Divider(color: Color(0xFFE8E6DF)),
+            const SizedBox(height: 20),
+
+            // ── Reviews Section ──────────────────────────────────
+            ReviewsSection(
+              ebookId: _ebook!.id,
+              owned:   _owned,
+            ),
+
+            const SizedBox(height: 100),
           ],
         ),
       ),
@@ -234,10 +287,7 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
                   style: TextStyle(fontSize: 12, color: Color(0xFF888780)),
                 ),
                 Text(
-                  'Rp ${_ebook!.price.toStringAsFixed(0).replaceAllMapped(
-                        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-                        (m) => '${m[1]}.',
-                      )}',
+                  'Rp ${_ebook!.price.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.')}',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
@@ -290,7 +340,8 @@ class _InfoChip extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: const Color(0xFF888780)),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF888780))),
+        Text(label,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF888780))),
       ],
     );
   }

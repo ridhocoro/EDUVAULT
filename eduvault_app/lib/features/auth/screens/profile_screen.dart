@@ -1,10 +1,10 @@
-// lib/features/auth/screens/profile_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/auth_provider.dart';
 import '../../library/screens/library_screen.dart';
+import '../../wishlist/screens/wishlist_screen.dart';
+import '../../wishlist/providers/wishlist_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -45,7 +45,6 @@ class ProfileScreen extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 32),
               child: Column(
                 children: [
-                  // Avatar
                   CircleAvatar(
                     radius: 48,
                     backgroundColor: const Color(0xFF1D9E75),
@@ -64,7 +63,6 @@ class ProfileScreen extends ConsumerWidget {
                         : null,
                   ),
                   const SizedBox(height: 16),
-                  // Nama
                   Text(
                     user.name,
                     style: const TextStyle(
@@ -74,7 +72,6 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // Email
                   Text(
                     user.email,
                     style: const TextStyle(
@@ -83,12 +80,9 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  // Badge role
                   Container(
                     padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 4,
-                    ),
+                        horizontal: 14, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFE1F5EE),
                       borderRadius: BorderRadius.circular(20),
@@ -119,10 +113,42 @@ class ProfileScreen extends ConsumerWidget {
                     subtitle: 'E-book yang sudah dibeli',
                     onTap: () => Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const LibraryScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const LibraryScreen()),
                     ),
                   ),
                   const Divider(height: 1, indent: 56),
+
+                  // ── Wishlist ──────────────────────────────────
+                  Consumer(
+                    builder: (context, ref, _) {
+                      final wishlistCount =
+                          ref.watch(wishlistProvider).items.length;
+                      return _MenuItem(
+                        icon: Icons.bookmark_rounded,
+                        label: 'Wishlist Saya',
+                        subtitle: wishlistCount > 0
+                            ? '$wishlistCount buku tersimpan'
+                            : 'Buku yang ingin dibeli nanti',
+                        badge: wishlistCount > 0
+                            ? wishlistCount.toString()
+                            : null,
+                        onTap: () {
+                          // Load terbaru sebelum buka screen
+                          ref
+                              .read(wishlistProvider.notifier)
+                              .loadWishlist();
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const WishlistScreen()),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                  const Divider(height: 1, indent: 56),
+
                   _MenuItem(
                     icon: Icons.receipt_long_outlined,
                     label: 'Riwayat Pesanan',
@@ -169,8 +195,7 @@ class ProfileScreen extends ConsumerWidget {
                     builder: (ctx) => AlertDialog(
                       title: const Text('Keluar'),
                       content: const Text(
-                        'Apakah kamu yakin ingin logout dari EduVault?',
-                      ),
+                          'Apakah kamu yakin ingin logout dari EduVault?'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
@@ -210,6 +235,7 @@ class _MenuItem extends StatelessWidget {
   final VoidCallback onTap;
   final Color iconColor;
   final Color textColor;
+  final String? badge;
 
   const _MenuItem({
     required this.icon,
@@ -218,6 +244,7 @@ class _MenuItem extends StatelessWidget {
     required this.onTap,
     this.iconColor = const Color(0xFF1D9E75),
     this.textColor = const Color(0xFF1A1A2E),
+    this.badge,
   });
 
   @override
@@ -242,17 +269,34 @@ class _MenuItem extends StatelessWidget {
       ),
       subtitle: Text(
         subtitle,
-        style: const TextStyle(
-          color: Color(0xFF888780),
-          fontSize: 12,
-        ),
+        style: const TextStyle(color: Color(0xFF888780), fontSize: 12),
       ),
-      trailing: Icon(
-        Icons.chevron_right,
-        color: Colors.grey.shade400,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (badge != null)
+            Container(
+              margin: const EdgeInsets.only(right: 6),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1D9E75),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                badge!,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+          Icon(Icons.chevron_right, color: Colors.grey.shade400),
+        ],
       ),
       onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 }

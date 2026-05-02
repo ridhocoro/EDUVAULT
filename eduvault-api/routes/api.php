@@ -5,6 +5,8 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\EbookController;
 use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\LibraryController;
+use App\Http\Controllers\Api\ReviewController;
+use App\Http\Controllers\Api\WishlistController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\EbookController as AdminEbookController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
@@ -25,6 +27,9 @@ Route::prefix('v1')->group(function () {
     Route::get('/ebooks/{slug}',         [EbookController::class, 'show']);
     Route::get('/categories',            [EbookController::class, 'categories']);
 
+    // Reviews (publik - siapa pun bisa baca)
+    Route::get('/ebooks/{ebookId}/reviews', [ReviewController::class, 'index']);
+
     // ─── Protected routes (perlu login) ──────────────────────────
     Route::middleware('auth:sanctum')->group(function () {
 
@@ -40,6 +45,16 @@ Route::prefix('v1')->group(function () {
         // Library user
         Route::get('/library',           [LibraryController::class, 'index']);
         Route::get('/library/{id}/read', [LibraryController::class, 'getReadUrl']);
+
+        // Reviews (write - hanya pemilik buku)
+        Route::post('/ebooks/{ebookId}/reviews',   [ReviewController::class, 'store']);
+        Route::delete('/ebooks/{ebookId}/reviews', [ReviewController::class, 'destroy']);
+
+        // Wishlist
+        Route::get('/wishlist',                    [WishlistController::class, 'index']);
+        Route::post('/wishlist/{ebookId}',         [WishlistController::class, 'store']);
+        Route::delete('/wishlist/{ebookId}',       [WishlistController::class, 'destroy']);
+        Route::get('/wishlist/{ebookId}/check',    [WishlistController::class, 'check']);
 
         // ─── Admin routes (perlu login + role admin) ──────────────
         Route::middleware('admin')->prefix('admin')->group(function () {
@@ -72,5 +87,5 @@ Route::prefix('v1')->group(function () {
     });
 });
 
-// Midtrans payment notification (webhook publik, verifikasi via signature)
+// Midtrans payment notification (webhook publik)
 Route::post('/v1/payment/notification', [OrderController::class, 'paymentNotification']);
