@@ -6,18 +6,38 @@ class ApiService {
   static final Dio _dio = Dio(
     BaseOptions(
       baseUrl: ApiConstants.baseUrl,
-      connectTimeout: const Duration(seconds: 30), // naik dari 10 → 30 untuk ngrok
+      connectTimeout: const Duration(seconds: 30),
       receiveTimeout: const Duration(seconds: 30),
       headers: {
         'Accept': 'application/json',
-        // Wajib untuk bypass ngrok browser warning page
-        // Tanpa ini, ngrok return HTML bukan JSON → parse gagal
         'ngrok-skip-browser-warning': 'true',
       },
     ),
   )..interceptors.add(_AuthInterceptor());
 
   static Dio get dio => _dio;
+
+  // Method get agar OrderProvider bisa memanggil ApiService.get('/orders')
+  static Future<Map<String, dynamic>> get(String endpoint) async {
+    try {
+      final response = await _dio.get(endpoint);
+      
+      // Dio otomatis mengubah JSON menjadi Map<String, dynamic>
+      // Jika response.data sudah berupa Map, kita langsung kembalikan
+      if (response.data is Map<String, dynamic>) {
+        return response.data;
+      }
+      
+      // Jika karena suatu hal data bukan Map, kita bungkus agar tidak error di provider
+      return {'data': response.data};
+    } on DioException catch (e) {
+      // Menangkap error dari server atau koneksi
+      return {
+        'success': false,
+        'message': e.response?.data['message'] ?? e.message,
+      };
+    }
+  }
 }
 
 class _AuthInterceptor extends Interceptor {

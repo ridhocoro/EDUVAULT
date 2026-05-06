@@ -5,6 +5,7 @@ import '../providers/auth_provider.dart';
 import '../../library/screens/library_screen.dart';
 import '../../wishlist/screens/wishlist_screen.dart';
 import '../../wishlist/providers/wishlist_provider.dart';
+import '../../order/screens/order_history_screen.dart'; // Sesuaikan path folder Anda
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -154,8 +155,11 @@ class ProfileScreen extends ConsumerWidget {
                     label: 'Riwayat Pesanan',
                     subtitle: 'Lihat semua transaksi',
                     onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Coming soon!')),
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const OrderHistoryScreen(),
+                        ),
                       );
                     },
                   ),

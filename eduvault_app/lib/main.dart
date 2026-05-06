@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:app_links/app_links.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/catalog/screens/home_screen.dart';
+import 'package:provider/provider.dart' as legacy; // Menggunakan alias agar tidak bentrok dengan Riverpod
+import 'features/order/providers/order_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -75,17 +77,21 @@ class _EduVaultAppState extends ConsumerState<EduVaultApp> {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'EduVault',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1D9E75),
+    // Bungkus MaterialApp dengan ChangeNotifierProvider
+    return legacy.ChangeNotifierProvider(
+      create: (_) => OrderProvider(),
+      child: MaterialApp(
+        title: 'EduVault',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF1D9E75),
+          ),
+          fontFamily: 'Roboto',
+          useMaterial3: true,
         ),
-        fontFamily: 'Roboto',
-        useMaterial3: true,
+        home: const HomeScreen(),
       ),
-      home: const HomeScreen(),
     );
   }
 }

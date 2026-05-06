@@ -107,12 +107,23 @@ class OrderController extends Controller
     // ── Riwayat order user ────────────────────────────────────────
     public function index(Request $request)
     {
+        // Mengambil data order milik user dengan relasi ebook dan urutan terbaru
         $orders = Order::where('user_id', $request->user()->id)
                     ->with('items.ebook')
                     ->latest()
-                    ->paginate(10);
+                    ->paginate(10); // Menggunakan pagination agar aplikasi tidak berat
 
-        return response()->json($orders);
+        // Mengembalikan response dalam format yang konsisten untuk Flutter
+        return response()->json([
+            'success' => true,
+            'message' => 'Riwayat transaksi berhasil diambil',
+            'data'    => $orders->items(), // Mengambil data list order saja
+            'meta'    => [
+                'current_page' => $orders->currentPage(),
+                'last_page'    => $orders->lastPage(),
+                'total'        => $orders->total(),
+            ]
+        ], 200);
     }
 
     // ── Detail satu order ─────────────────────────────────────────
