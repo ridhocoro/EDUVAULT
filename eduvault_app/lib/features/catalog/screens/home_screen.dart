@@ -264,7 +264,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             child: catalog.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : catalog.errorMessage != null
-                    ? Center(child: Text(catalog.errorMessage!))
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.wifi_off_rounded,
+                                size: 48, color: Color(0xFFD1D5DB)),
+                            const SizedBox(height: 16),
+                            Text(
+                              catalog.errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  color: Color(0xFF6B7280), fontSize: 14),
+                            ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () =>
+                                  ref.read(catalogProvider.notifier).fetchEbooks(),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1D9E75),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                              ),
+                              icon: const Icon(Icons.refresh, size: 18),
+                              label: const Text('Coba Lagi'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
                     : ebooks.isEmpty
                         ? const Center(
                             child: Text('Tidak ada buku yang sesuai filter.'),

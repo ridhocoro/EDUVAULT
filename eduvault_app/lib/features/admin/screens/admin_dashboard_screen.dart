@@ -70,7 +70,7 @@ class _AdminDashboardScreenState extends ConsumerState<AdminDashboardScreen>
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: _dark),
-          onPressed: () => Navigator.pop(context),
+          onPressed: () => Navigator.maybePop(context),
         ),
         bottom: TabBar(
           controller: _tabs,

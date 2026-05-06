@@ -19,17 +19,23 @@ class LibraryController extends Controller
         return response()->json($library);
     }
 
-    // Dapatkan URL baca sementara (signed URL, berlaku 2 jam)
+    // Dapatkan URL baca untuk membuka PDF
+    // Menggunakan public disk (local storage), bukan S3
     public function getReadUrl(Request $request, int $id)
     {
         $ebook = $request->user()->library()->findOrFail($id);
 
-        // Buat signed URL yang expired setelah 2 jam
-        // Mencegah user menyebarkan link PDF secara bebas
-        $url = Storage::disk('s3')->temporaryUrl(
-            $ebook->file_url,
-            now()->addHours(2)
-        );
+        if (empty($ebook->file_url)) {
+            return response()->json(
+                ['message' => 'File buku tidak tersedia.'],
+                404
+            );
+        }
+
+        // file_url sudah berupa path relatif di storage/app/public
+        // misalnya: "ebooks/somefile.pdf"
+        // Storage::disk('public')->url() akan menghasilkan URL publik yang benar
+        $url = Storage::disk('public')->url($ebook->file_url);
 
         return response()->json(['read_url' => $url]);
     }

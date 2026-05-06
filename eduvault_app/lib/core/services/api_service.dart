@@ -6,16 +6,20 @@ class ApiService {
   static final Dio _dio = Dio(
     BaseOptions(
       baseUrl: ApiConstants.baseUrl,
-      connectTimeout: const Duration(seconds: 10),
-      receiveTimeout: const Duration(seconds: 10),
-      headers: {'Accept': 'application/json'},
+      connectTimeout: const Duration(seconds: 30), // naik dari 10 → 30 untuk ngrok
+      receiveTimeout: const Duration(seconds: 30),
+      headers: {
+        'Accept': 'application/json',
+        // Wajib untuk bypass ngrok browser warning page
+        // Tanpa ini, ngrok return HTML bukan JSON → parse gagal
+        'ngrok-skip-browser-warning': 'true',
+      },
     ),
   )..interceptors.add(_AuthInterceptor());
 
   static Dio get dio => _dio;
 }
 
-// Interceptor: otomatis tambahkan token ke setiap request
 class _AuthInterceptor extends Interceptor {
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
@@ -28,7 +32,6 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
-    // Kalau 401, token tidak valid — arahkan ke login
     if (err.response?.statusCode == 401) {
       TokenStorage.deleteToken();
     }

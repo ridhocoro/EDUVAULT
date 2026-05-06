@@ -7,17 +7,13 @@ use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Ebook;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class EbookController extends Controller
 {
     /**
      * Daftar semua ebook (termasuk draft & archived) — khusus admin
-     * Query params:
-     *   - search   : string
-     *   - status   : draft | published | archived
-     *   - category : category slug
-     *   - per_page : int (default 20, max 100)
      */
     public function index(Request $request)
     {
@@ -50,7 +46,6 @@ class EbookController extends Controller
     {
         $ebook = Ebook::with('category')->findOrFail($id);
 
-        // Admin dapat melihat file_url, expose manual karena model menyembunyikannya
         return response()->json(array_merge($ebook->toArray(), [
             'file_url' => $ebook->getRawOriginal('file_url'),
         ]));
@@ -74,7 +69,6 @@ class EbookController extends Controller
             'status'       => 'nullable|in:draft,published,archived',
         ]);
 
-        // Auto-generate slug dari title, pastikan unik
         $slug = Str::slug($data['title']);
         $originalSlug = $slug;
         $counter = 1;
@@ -114,7 +108,6 @@ class EbookController extends Controller
             'status'       => 'sometimes|required|in:draft,published,archived',
         ]);
 
-        // Update slug jika title berubah
         if (isset($data['title']) && $data['title'] !== $ebook->title) {
             $slug = Str::slug($data['title']);
             $originalSlug = $slug;
@@ -126,7 +119,6 @@ class EbookController extends Controller
             $data['slug'] = $slug;
         }
 
-        // Jika status berubah ke published dan belum ada published_at
         if (isset($data['status']) && $data['status'] === 'published' && ! $ebook->published_at) {
             $data['published_at'] = now();
         }
@@ -137,7 +129,65 @@ class EbookController extends Controller
     }
 
     /**
-     * Nonaktifkan buku (set status → archived) tanpa hapus data
+     * Upload file PDF atau EPUB untuk sebuah buku.
+     * Menyimpan ke storage/app/public/ebooks/{id}/
+     * dan meng-update kolom file_url di tabel ebooks.
+     */
+    public function uploadFile(Request $request, int $id)
+    {
+        $ebook = Ebook::findOrFail($id);
+
+        $request->validate([
+            'file' => 'required|file|mimes:pdf,epub|max:102400', // max 100 MB
+        ]);
+
+        // Hapus file lama jika ada
+        $oldPath = $ebook->getRawOriginal('file_url');
+        if ($oldPath && Storage::disk('public')->exists($oldPath)) {
+            Storage::disk('public')->delete($oldPath);
+        }
+
+        // Simpan file baru ke storage/app/public/ebooks/{id}/
+        $file = $request->file('file');
+        $filename = Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME))
+                  . '_' . time()
+                  . '.' . $file->getClientOriginalExtension();
+
+        $path = $file->storeAs("ebooks/{$id}", $filename, 'public');
+
+        // Simpan path relatif ke DB (bukan full URL, biar fleksibel)
+        $ebook->update(['file_url' => $path]);
+
+        return response()->json([
+            'message'  => 'File berhasil diupload.',
+            'file_url' => Storage::disk('public')->url($path),
+        ]);
+    }
+
+    /**
+     * Hapus file PDF/EPUB dari storage dan kosongkan file_url di DB.
+     */
+    public function deleteFile(int $id)
+    {
+        $ebook = Ebook::findOrFail($id);
+
+        $path = $ebook->getRawOriginal('file_url');
+
+        if (empty($path)) {
+            return response()->json(['message' => 'Tidak ada file untuk dihapus.'], 404);
+        }
+
+        if (Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
+
+        $ebook->update(['file_url' => null]);
+
+        return response()->json(['message' => 'File berhasil dihapus.']);
+    }
+
+    /**
+     * Nonaktifkan buku (set status → archived)
      */
     public function deactivate(int $id)
     {
@@ -174,11 +224,18 @@ class EbookController extends Controller
     }
 
     /**
-     * Hapus permanen buku — hati-hati, ini hard delete
+     * Hapus permanen buku — hard delete
      */
     public function destroy(int $id)
     {
         $ebook = Ebook::findOrFail($id);
+
+        // Hapus file fisik juga jika ada
+        $path = $ebook->getRawOriginal('file_url');
+        if ($path && Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
+        }
+
         $ebook->delete();
 
         return response()->json(['message' => 'Buku berhasil dihapus.'], 200);
