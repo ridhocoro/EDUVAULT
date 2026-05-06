@@ -15,6 +15,7 @@ class ApiConstants {
 
   // Order
   static const String orders = '/orders';
+  static String orderDetail(String code) => '/orders/$code';
 
   // Library
   static const String library = '/library';
@@ -32,4 +33,6 @@ class ApiConstants {
   static const String adminEbooks     = '/admin/ebooks';
   static const String adminCategories = '/admin/categories';
   static const String adminUsers      = '/admin/users';
+  static String adminEbookUpload(int id) => '/admin/ebooks/$id/upload-file';
+  static String adminEbookDetail(int id) => '/admin/ebooks/$id';
 }

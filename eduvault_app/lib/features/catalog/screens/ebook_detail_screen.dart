@@ -39,9 +39,11 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
       bool owned = false;
 
       if (data is Map && data.containsKey('ebook')) {
+        // Format baru: { ebook: {...}, owned: bool }
         ebook = EbookModel.fromJson(data['ebook'] as Map<String, dynamic>);
-        owned = data['owned'] ?? false;
+        owned = (data['owned'] as bool?) ?? false;
       } else {
+        // Fallback format lama (data langsung tanpa wrapper)
         ebook = EbookModel.fromJson(data as Map<String, dynamic>);
         owned = await _checkOwned(ebook.id);
       }
@@ -95,7 +97,10 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => CheckoutScreen(ebook: _ebook!)),
-    );
+    ).then((_) {
+      // Refresh detail setelah kembali dari checkout (update status owned)
+      _fetchDetail();
+    });
   }
 
   Future<void> _toggleWishlist() async {

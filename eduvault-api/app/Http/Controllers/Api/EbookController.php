@@ -66,15 +66,26 @@ class EbookController extends Controller
 
     /**
      * Detail ebook by slug
+     * Mengembalikan { ebook, owned } agar Flutter tahu apakah user sudah beli.
+     * Jika belum login (guest), owned selalu false.
      */
-    public function show(string $slug)
+    public function show(Request $request, string $slug)
     {
         $ebook = Ebook::with('category')
             ->published()
             ->where('slug', $slug)
             ->firstOrFail();
 
-        return response()->json($ebook);
+        $owned = false;
+        $user  = $request->user(); // null jika belum login (route publik)
+        if ($user) {
+            $owned = $user->ownsEbook($ebook->id);
+        }
+
+        return response()->json([
+            'ebook' => $ebook,
+            'owned' => $owned,
+        ]);
     }
 
     /**

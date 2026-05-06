@@ -24,7 +24,8 @@ Route::prefix('v1')->group(function () {
 
     // Katalog buku (publik)
     Route::get('/ebooks',                [EbookController::class, 'index']);
-    Route::get('/ebooks/{slug}',         [EbookController::class, 'show']);
+    // auth.optional: $request->user() terisi jika ada token valid, null jika guest
+    Route::middleware('auth.optional')->get('/ebooks/{slug}', [EbookController::class, 'show']);
     Route::get('/categories',            [EbookController::class, 'categories']);
 
     // Reviews (publik - siapa pun bisa baca)
@@ -87,5 +88,8 @@ Route::prefix('v1')->group(function () {
     });
 });
 
-// Midtrans payment notification (webhook publik)
-Route::post('/v1/payment/notification', [OrderController::class, 'paymentNotification']);
+// Midtrans payment notification (webhook publik, tanpa auth)
+// URL: POST /api/v1/payment/notification
+Route::prefix('v1')->group(function () {
+    Route::post('/payment/notification', [OrderController::class, 'paymentNotification']);
+});

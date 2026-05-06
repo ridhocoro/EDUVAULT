@@ -14,9 +14,16 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Daftarkan alias middleware 'admin'
+        // Daftarkan alias middleware
         $middleware->alias([
-            'admin' => \App\Http\Middleware\EnsureAdmin::class,
+            'admin'         => \App\Http\Middleware\EnsureAdmin::class,
+            'auth.optional' => \App\Http\Middleware\OptionalSanctumAuth::class,
+        ]);
+
+        // Izinkan webhook Midtrans melewati CSRF (API routes sudah stateless,
+        // tapi eksplisit lebih aman)
+        $middleware->validateCsrfTokens(except: [
+            'api/v1/payment/notification',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

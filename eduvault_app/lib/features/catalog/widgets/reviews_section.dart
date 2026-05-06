@@ -76,13 +76,27 @@ class _ReviewsSectionState extends ConsumerState<ReviewsSection> {
           const SizedBox(height: 16),
         ],
 
-        // ── Write review button ──────────────────────────────────
+        // ── Write review button / hint ───────────────────────────
         if (widget.owned && isLoggedIn) ...[
           _WriteReviewButton(
             ebookId: widget.ebookId,
             existingReview: myReview,
           ),
           const SizedBox(height: 16),
+        ] else if (!isLoggedIn) ...[
+          // Guest: bisa lihat ulasan, tapi tidak bisa menulis
+          _ReviewHint(
+            icon: Icons.edit_off_outlined,
+            message: 'Login dan beli buku ini untuk menulis ulasan.',
+          ),
+          const SizedBox(height: 12),
+        ] else ...[
+          // Sudah login tapi belum beli
+          _ReviewHint(
+            icon: Icons.shopping_bag_outlined,
+            message: 'Beli buku ini untuk bisa menulis ulasan.',
+          ),
+          const SizedBox(height: 12),
         ],
 
         // ── List reviews ────────────────────────────────────────
@@ -484,6 +498,36 @@ class _EmptyReviews extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 13, color: Color(0xFF888780)),
         ),
+      ),
+    );
+  }
+}
+
+class _ReviewHint extends StatelessWidget {
+  final IconData icon;
+  final String message;
+  const _ReviewHint({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF4F3F0),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE8E6DF)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF888780)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(fontSize: 13, color: Color(0xFF888780)),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -3,9 +3,13 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:dio/dio.dart' as dio_pkg;
 import '../providers/admin_provider.dart';
 import '../models/admin_models.dart';
 import '../../catalog/models/ebook_model.dart';
+import '../../../core/services/api_service.dart';
+import '../../../core/constants/api_constants.dart';
 
 // Warna tema
 const _green = Color(0xFF1D9E75);
@@ -602,9 +606,13 @@ class _EbookFormSheetState extends ConsumerState<_EbookFormSheet> {
   late final TextEditingController _pages;
   late final TextEditingController _djki;
   late final TextEditingController _cover;
-  late final TextEditingController _file;
   String _status = 'draft';
   int? _categoryId;
+
+  // Upload state
+  String? _existingFileUrl;   // path file yang sudah ada di server
+  String? _uploadedFileName;  // nama file setelah upload berhasil
+  bool _isUploading = false;
 
   @override
   void initState() {
@@ -617,17 +625,104 @@ class _EbookFormSheetState extends ConsumerState<_EbookFormSheet> {
     _pages  = TextEditingController(text: b?.totalPages.toString() ?? '0');
     _djki   = TextEditingController(text: b?.djkiCertNo);
     _cover  = TextEditingController(text: b?.coverUrl);
-    _file   = TextEditingController(text: b?.fileUrl);
     _status = b?.status ?? 'draft';
     _categoryId = b?.categoryId ?? b?.category?.id;
+    _existingFileUrl = b?.fileUrl;
   }
 
   @override
   void dispose() {
-    for (final c in [_title, _author, _price, _desc, _pages, _djki, _cover, _file]) {
+    for (final c in [_title, _author, _price, _desc, _pages, _djki, _cover]) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  // ── Upload file PDF/EPUB ke server ────────────────────────────
+  Future<void> _pickAndUpload() async {
+    // Harus simpan buku dulu sebelum upload file
+    if (widget.ebook == null) {
+      _showSnack(context, 'Simpan buku terlebih dahulu sebelum upload file.', isError: true);
+      return;
+    }
+
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'epub'],
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    if (file.path == null) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      final formData = dio_pkg.FormData.fromMap({
+        'file': await dio_pkg.MultipartFile.fromFile(
+          file.path!,
+          filename: file.name,
+        ),
+      });
+
+      final res = await ApiService.dio.post(
+        ApiConstants.adminEbookUpload(widget.ebook!.id),
+        data: formData,
+        options: dio_pkg.Options(
+          headers: {'Content-Type': 'multipart/form-data'},
+        ),
+      );
+
+      setState(() {
+        _existingFileUrl = res.data['file_url'] as String?;
+        _uploadedFileName = file.name;
+        _isUploading = false;
+      });
+
+      if (mounted) {
+        _showSnack(context, 'File "${file.name}" berhasil diupload!');
+        // Refresh daftar buku di admin
+        ref.read(adminProvider.notifier).loadEbooks();
+      }
+    } catch (e) {
+      setState(() => _isUploading = false);
+      if (mounted) {
+        _showSnack(context, 'Gagal upload: ${e.toString()}', isError: true);
+      }
+    }
+  }
+
+  // ── Hapus file dari server ────────────────────────────────────
+  Future<void> _deleteFile() async {
+    if (widget.ebook == null) return;
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Hapus file?'),
+        content: const Text('File PDF/EPUB akan dihapus dari server.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Batal')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await ApiService.dio.delete(ApiConstants.adminEbookUpload(widget.ebook!.id));
+      setState(() {
+        _existingFileUrl = null;
+        _uploadedFileName = null;
+      });
+      if (mounted) _showSnack(context, 'File berhasil dihapus.');
+    } catch (e) {
+      if (mounted) _showSnack(context, 'Gagal hapus file.', isError: true);
+    }
   }
 
   Future<void> _save() async {
@@ -641,7 +736,6 @@ class _EbookFormSheetState extends ConsumerState<_EbookFormSheet> {
       'total_pages':  int.tryParse(_pages.text) ?? 0,
       'djki_cert_no': _djki.text.trim().isEmpty ? null : _djki.text.trim(),
       'cover_url':    _cover.text.trim().isEmpty ? null : _cover.text.trim(),
-      'file_url':     _file.text.trim().isEmpty ? null : _file.text.trim(),
       'status':       _status,
       'category_id':  _categoryId,
     };
@@ -661,7 +755,9 @@ class _EbookFormSheetState extends ConsumerState<_EbookFormSheet> {
       _showSnack(context, err, isError: true);
     } else {
       Navigator.pop(context);
-      _showSnack(context, 'Buku berhasil disimpan');
+      _showSnack(context, widget.ebook == null
+          ? 'Buku berhasil dibuat! Buka Edit untuk upload file PDF.'
+          : 'Buku berhasil disimpan.');
     }
   }
 
@@ -731,13 +827,111 @@ class _EbookFormSheetState extends ConsumerState<_EbookFormSheet> {
                     _field('URL Cover', _cover,
                         keyboard: TextInputType.url,
                         hint: 'https://...'),
-                    _field('URL File PDF', _file,
-                        keyboard: TextInputType.url,
-                        hint: 'https://...'),
 
-                    const SizedBox(height: 4),
+                    // ── Upload File PDF/EPUB ────────────────────
+                    const SizedBox(height: 8),
+                    const Text('File Buku (PDF / EPUB)',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _grey)),
+                    const SizedBox(height: 8),
 
-                    // Kategori
+                    // Status file yang sudah ada
+                    if (_existingFileUrl != null) ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF0FBF7),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFB8E8D8)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.picture_as_pdf_rounded,
+                                color: _green, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _uploadedFileName ??
+                                    _existingFileUrl!.split('/').last,
+                                style: const TextStyle(
+                                    fontSize: 13, color: _dark),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isEdit)
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    color: Colors.redAccent, size: 20),
+                                onPressed: _deleteFile,
+                                tooltip: 'Hapus file',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    // Tombol upload
+                    if (isEdit) ...[
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: _isUploading ? null : _pickAndUpload,
+                          icon: _isUploading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2, color: _green),
+                                )
+                              : const Icon(Icons.upload_file_rounded,
+                                  color: _green, size: 18),
+                          label: Text(
+                            _isUploading
+                                ? 'Mengupload...'
+                                : _existingFileUrl != null
+                                    ? 'Ganti File PDF/EPUB'
+                                    : 'Upload File PDF/EPUB',
+                            style: const TextStyle(color: _green),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: _green),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF8E1),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFFFE082)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.info_outline,
+                                color: Colors.orange, size: 16),
+                            SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Simpan buku terlebih dahulu, lalu buka Edit untuk upload file PDF/EPUB.',
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.orange),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
+                    const SizedBox(height: 14),
                     const Text('Kategori *',
                         style: TextStyle(
                             fontSize: 12,
