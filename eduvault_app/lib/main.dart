@@ -1,5 +1,3 @@
-// lib/main.dart
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:app_links/app_links.dart';
@@ -7,6 +5,7 @@ import 'features/auth/providers/auth_provider.dart';
 import 'features/catalog/screens/home_screen.dart';
 import 'package:provider/provider.dart' as legacy; // Menggunakan alias agar tidak bentrok dengan Riverpod
 import 'features/order/providers/order_provider.dart';
+import 'features/chat/providers/chat_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

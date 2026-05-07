@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin'         => \App\Http\Middleware\EnsureAdmin::class,
             'auth.optional' => \App\Http\Middleware\OptionalSanctumAuth::class,
+            'verify.book.ownership' => \App\Http\Middleware\VerifyBookOwnership::class, // ✅ TAMBAHKAN INI
         ]);
 
         // Izinkan webhook Midtrans melewati CSRF (API routes sudah stateless,

@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\OrderController;
 use App\Http\Controllers\Api\LibraryController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\WishlistController;
+use App\Http\Controllers\Api\ChatController;
 use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\EbookController as AdminEbookController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
@@ -55,6 +56,15 @@ Route::prefix('v1')->group(function () {
         Route::post('/wishlist/{ebookId}',         [WishlistController::class, 'store']);
         Route::delete('/wishlist/{ebookId}',       [WishlistController::class, 'destroy']);
         Route::get('/wishlist/{ebookId}/check',    [WishlistController::class, 'check']);
+
+        // ============================================
+        // 🤖 AI CHAT (hanya untuk buku yang sudah dibeli)
+        // ============================================
+        Route::middleware('verify.book.ownership')->prefix('books/{book_id}')->group(function () {
+            Route::post('/chat',           [ChatController::class, 'send']);
+            Route::post('/chat/stream',    [ChatController::class, 'sendStream']);
+            Route::get('/chat/history',    [ChatController::class, 'history']);
+        });
 
         // ─── Admin routes (perlu login + role admin) ──────────────
         Route::middleware('admin')->prefix('admin')->group(function () {

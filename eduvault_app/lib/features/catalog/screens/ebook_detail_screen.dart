@@ -9,6 +9,7 @@ import '../models/ebook_model.dart';
 import '../widgets/reviews_section.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../chat/screens/chat_screen.dart';
 
 class EbookDetailScreen extends ConsumerStatefulWidget {
   final String slug;
@@ -115,6 +116,23 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
     await ref
         .read(wishlistProvider.notifier)
         .toggleWishlist(_ebook!.id);
+  }
+
+  // ============================================
+  // METHOD UNTUK MEMBUKA CHAT SCREEN
+  // ============================================
+  void _openChat() {
+    if (_ebook == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ChatScreen(
+          bookId: _ebook!.id,
+          bookTitle: _ebook!.title,
+          bookCover: _ebook!.coverUrl,
+        ),
+      ),
+    );
   }
 
   @override
@@ -330,6 +348,25 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
           ],
         ),
       ),
+
+      // ============================================
+      // FLOATING ACTION BUTTON CHAT
+      // HANYA MUNCUL JIKA BUKU SUDAH DIBELI (_owned == true)
+      // ============================================
+      floatingActionButton: _owned
+          ? FloatingActionButton.extended(
+              onPressed: _openChat,
+              icon: const Icon(Icons.chat_bubble_outline),
+              label: const Text('Tanya AI'),
+              backgroundColor: const Color(0xFF1D9E75),
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+            )
+          : null,
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
