@@ -1,11 +1,14 @@
+// lib/features/auth/screens/profile_screen.dart
+// REDESIGN sesuai Figma — Dark header + stats + settings list
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/auth_provider.dart';
-import '../../library/screens/library_screen.dart';
 import '../../wishlist/screens/wishlist_screen.dart';
 import '../../wishlist/providers/wishlist_provider.dart';
-import '../../order/screens/order_history_screen.dart'; // Sesuaikan path folder Anda
+import '../../order/screens/order_history_screen.dart';
+import '../../auth/screens/login_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -15,184 +18,311 @@ class ProfileScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final user = auth.user;
 
-    if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Tidak ada data user.')),
+    // Not logged in state
+    if (!auth.isLoggedIn || user == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFFF5F5F5),
+        body: Column(
+          children: [
+            // Dark header
+            Container(
+              color: const Color(0xFF0F1923),
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+                  child: Column(
+                    children: [
+                      // Avatar placeholder
+                      Container(
+                        width: 72,
+                        height: 72,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withOpacity(0.1),
+                        ),
+                        child: Icon(
+                          Icons.person_outline_rounded,
+                          color: Colors.white.withOpacity(0.5),
+                          size: 36,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Belum Masuk',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: Center(
+                child: ElevatedButton(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1D9E75),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 32, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text(
+                    'Masuk ke Akun',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
+    final isPremium = user.role == 'admin';
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7F4),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Profil Saya',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A2E),
-            fontSize: 18,
-          ),
-        ),
-        iconTheme: const IconThemeData(color: Color(0xFF1A1A2E)),
-      ),
+      backgroundColor: const Color(0xFFF5F5F5),
       body: SingleChildScrollView(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ─── Header avatar + nama ─────────────────────────────
+            // ─── Dark Header ─────────────────────────────────────
             Container(
-              width: double.infinity,
+              color: const Color(0xFF0F1923),
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+                  child: Column(
+                    children: [
+                      // Avatar + name
+                      Row(
+                        children: [
+                          // Avatar
+                          Container(
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white.withOpacity(0.15),
+                                width: 2,
+                              ),
+                            ),
+                            child: CircleAvatar(
+                              radius: 32,
+                              backgroundColor:
+                                  Colors.white.withOpacity(0.1),
+                              backgroundImage: user.avatar != null
+                                  ? CachedNetworkImageProvider(user.avatar!)
+                                  : null,
+                              child: user.avatar == null
+                                  ? Icon(
+                                      Icons.person_rounded,
+                                      color: Colors.white.withOpacity(0.7),
+                                      size: 32,
+                                    )
+                                  : null,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+                          // Name + badge
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  user.name,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isPremium
+                                        ? const Color(0xFF1D9E75)
+                                            .withOpacity(0.2)
+                                        : Colors.white.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: isPremium
+                                          ? const Color(0xFF1D9E75)
+                                              .withOpacity(0.5)
+                                          : Colors.white.withOpacity(0.15),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    isPremium
+                                        ? 'Member Premium'
+                                        : 'Member',
+                                    style: TextStyle(
+                                      color: isPremium
+                                          ? const Color(0xFF1D9E75)
+                                          : Colors.white.withOpacity(0.6),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Stats row
+                      Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.07),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withOpacity(0.08),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            _HeaderStat(value: '24', label: 'Buku Dibeli'),
+                            _Divider(),
+                            _HeaderStat(value: '18', label: 'Selesai Dibaca'),
+                            _Divider(),
+                            _HeaderStat(value: '156', label: 'Jam Baca'),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ─── Akun Section ─────────────────────────────────────
+            _SectionHeader(title: 'Akun'),
+            Container(
               color: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 32),
               child: Column(
                 children: [
-                  CircleAvatar(
-                    radius: 48,
-                    backgroundColor: const Color(0xFF1D9E75),
-                    backgroundImage: user.avatar != null
-                        ? CachedNetworkImageProvider(user.avatar!)
-                        : null,
-                    child: user.avatar == null
-                        ? Text(
-                            user.name[0].toUpperCase(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 36,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          )
-                        : null,
+                  _SettingsRow(
+                    icon: Icons.email_outlined,
+                    title: 'Email',
+                    subtitle: user.email,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    user.name,
-                    style: const TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1A1A2E),
-                    ),
+                  _RowDivider(),
+                  _SettingsRow(
+                    icon: Icons.phone_outlined,
+                    title: 'Nomor Telepon',
+                    subtitle: '+62 812-3456-7890',
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    user.email,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Color(0xFF5F5E5A),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE1F5EE),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      user.role == 'admin' ? '👑 Admin' : '📚 Pengguna',
-                      style: const TextStyle(
-                        color: Color(0xFF1D9E75),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                  _RowDivider(),
+                  _SettingsRow(
+                    icon: Icons.credit_card_outlined,
+                    title: 'Metode Pembayaran',
+                    subtitle: '2 kartu tersimpan',
+                    onTap: () {},
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
 
-            // ─── Menu profil ──────────────────────────────────────
+            // ─── Koleksi Section ──────────────────────────────────
+            _SectionHeader(title: 'Koleksi'),
             Container(
               color: Colors.white,
               child: Column(
                 children: [
-                  _MenuItem(
-                    icon: Icons.menu_book_rounded,
-                    label: 'Library Saya',
-                    subtitle: 'E-book yang sudah dibeli',
+                  Consumer(builder: (context, ref, _) {
+                    final wishlistCount =
+                        ref.watch(wishlistProvider).items.length;
+                    return _SettingsRow(
+                      icon: Icons.bookmark_border_rounded,
+                      title: 'Wishlist Saya',
+                      subtitle: wishlistCount > 0
+                          ? '$wishlistCount buku tersimpan'
+                          : 'Buku yang ingin dibeli nanti',
+                      badgeCount:
+                          wishlistCount > 0 ? wishlistCount : null,
+                      onTap: () {
+                        ref
+                            .read(wishlistProvider.notifier)
+                            .loadWishlist();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const WishlistScreen()),
+                        );
+                      },
+                    );
+                  }),
+                  _RowDivider(),
+                  _SettingsRow(
+                    icon: Icons.receipt_long_outlined,
+                    title: 'Riwayat Pesanan',
+                    subtitle: 'Lihat semua transaksi',
                     onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) => const LibraryScreen()),
+                          builder: (_) => const OrderHistoryScreen()),
                     ),
-                  ),
-                  const Divider(height: 1, indent: 56),
-
-                  // ── Wishlist ──────────────────────────────────
-                  Consumer(
-                    builder: (context, ref, _) {
-                      final wishlistCount =
-                          ref.watch(wishlistProvider).items.length;
-                      return _MenuItem(
-                        icon: Icons.bookmark_rounded,
-                        label: 'Wishlist Saya',
-                        subtitle: wishlistCount > 0
-                            ? '$wishlistCount buku tersimpan'
-                            : 'Buku yang ingin dibeli nanti',
-                        badge: wishlistCount > 0
-                            ? wishlistCount.toString()
-                            : null,
-                        onTap: () {
-                          // Load terbaru sebelum buka screen
-                          ref
-                              .read(wishlistProvider.notifier)
-                              .loadWishlist();
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const WishlistScreen()),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                  const Divider(height: 1, indent: 56),
-
-                  _MenuItem(
-                    icon: Icons.receipt_long_outlined,
-                    label: 'Riwayat Pesanan',
-                    subtitle: 'Lihat semua transaksi',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const OrderHistoryScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                  const Divider(height: 1, indent: 56),
-                  _MenuItem(
-                    icon: Icons.info_outline_rounded,
-                    label: 'Tentang Aplikasi',
-                    subtitle: 'EduVault v1.0.0',
-                    onTap: () {
-                      showAboutDialog(
-                        context: context,
-                        applicationName: 'EduVault',
-                        applicationVersion: '1.0.0',
-                        applicationLegalese:
-                            '© 2025 EduVault. All rights reserved.',
-                      );
-                    },
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+
+            // ─── Pengaturan Section ───────────────────────────────
+            _SectionHeader(title: 'Pengaturan'),
+            Container(
+              color: Colors.white,
+              child: Column(
+                children: [
+                  _SettingsRow(
+                    icon: Icons.settings_outlined,
+                    title: 'Pengaturan Aplikasi',
+                    onTap: () {},
+                  ),
+                  _RowDivider(),
+                  _SettingsRow(
+                    icon: Icons.notifications_none_rounded,
+                    title: 'Notifikasi',
+                    onTap: () {},
+                  ),
+                  _RowDivider(),
+                  _SettingsRow(
+                    icon: Icons.help_outline_rounded,
+                    title: 'Bantuan & Dukungan',
+                    onTap: () {},
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
 
             // ─── Logout ───────────────────────────────────────────
             Container(
               color: Colors.white,
-              child: _MenuItem(
-                icon: Icons.logout_rounded,
-                label: 'Keluar',
-                subtitle: 'Logout dari akun ini',
-                iconColor: Colors.redAccent,
-                textColor: Colors.redAccent,
+              child: InkWell(
                 onTap: () async {
                   final confirmed = await showDialog<bool>(
                     context: context,
@@ -218,9 +348,35 @@ class ProfileScreen extends ConsumerWidget {
                   );
                   if (confirmed == true) {
                     await ref.read(authProvider.notifier).logout();
-                    if (context.mounted) Navigator.pop(context);
                   }
                 },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 18),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                      color: Colors.redAccent.withOpacity(0.2),
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    color: Colors.redAccent.withOpacity(0.04),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.logout_rounded,
+                          color: Colors.redAccent, size: 18),
+                      SizedBox(width: 8),
+                      Text(
+                        'Keluar',
+                        style: TextStyle(
+                          color: Colors.redAccent,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
 
@@ -232,75 +388,165 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-class _MenuItem extends StatelessWidget {
-  final IconData icon;
+// ─── Header Stat ────────────────────────────────────────────────────
+class _HeaderStat extends StatelessWidget {
+  final String value;
   final String label;
-  final String subtitle;
-  final VoidCallback onTap;
-  final Color iconColor;
-  final Color textColor;
-  final String? badge;
 
-  const _MenuItem({
+  const _HeaderStat({required this.value, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 22,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: TextStyle(
+              color: Colors.white.withOpacity(0.5),
+              fontSize: 11,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Divider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 32,
+      width: 1,
+      color: Colors.white.withOpacity(0.1),
+    );
+  }
+}
+
+// ─── Section Header ─────────────────────────────────────────────────
+class _SectionHeader extends StatelessWidget {
+  final String title;
+
+  const _SectionHeader({required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF888780),
+          letterSpacing: 0.3,
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Settings Row ────────────────────────────────────────────────────
+class _SettingsRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final VoidCallback? onTap;
+  final int? badgeCount;
+
+  const _SettingsRow({
     required this.icon,
-    required this.label,
-    required this.subtitle,
-    required this.onTap,
-    this.iconColor = const Color(0xFF1D9E75),
-    this.textColor = const Color(0xFF1A1A2E),
-    this.badge,
+    required this.title,
+    this.subtitle,
+    this.onTap,
+    this.badgeCount,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: iconColor.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: iconColor, size: 20),
-      ),
-      title: Text(
-        label,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          color: textColor,
-          fontSize: 15,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(color: Color(0xFF888780), fontSize: 12),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (badge != null)
-            Container(
-              margin: const EdgeInsets.only(right: 6),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1D9E75),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                badge!,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600),
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: const Color(0xFF888780)),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
+                  if (subtitle != null) ...[
+                    const SizedBox(height: 1),
+                    Text(
+                      subtitle!,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFFAAAAAA),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          Icon(Icons.chevron_right, color: Colors.grey.shade400),
-        ],
+            if (badgeCount != null)
+              Container(
+                margin: const EdgeInsets.only(right: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1D9E75),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$badgeCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            if (onTap != null)
+              Icon(
+                Icons.chevron_right,
+                color: Colors.grey.shade400,
+                size: 20,
+              ),
+          ],
+        ),
       ),
-      onTap: onTap,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    );
+  }
+}
+
+class _RowDivider extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const Divider(
+      height: 1,
+      indent: 50,
+      endIndent: 0,
+      color: Color(0xFFF0F0F0),
     );
   }
 }

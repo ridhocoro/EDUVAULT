@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as legacy;
 import 'package:app_links/app_links.dart';
 import 'features/auth/providers/auth_provider.dart';
-import 'features/catalog/screens/home_screen.dart';
-import 'package:provider/provider.dart' as legacy; // Menggunakan alias agar tidak bentrok dengan Riverpod
 import 'features/order/providers/order_provider.dart';
-import 'features/chat/providers/chat_provider.dart';
+import 'features/catalog/screens/home_screen.dart';
+import 'features/library/screens/library_screen.dart';
+import 'features/auth/screens/profile_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+    ),
+  );
   runApp(
     const ProviderScope(
       child: EduVaultApp(),
@@ -33,50 +41,26 @@ class _EduVaultAppState extends ConsumerState<EduVaultApp> {
   }
 
   void _initDeepLinks() {
-    // Tangkap deeplink saat app sudah terbuka (dari background)
     _appLinks.uriLinkStream.listen(
-      (Uri uri) async {
-        debugPrint('🔗 Deeplink diterima (stream): $uri');
-        await _handleDeepLink(uri);
-      },
-      onError: (err) {
-        debugPrint('❌ Deeplink stream error: $err');
-      },
+      (Uri uri) async => await _handleDeepLink(uri),
+      onError: (_) {},
     );
-
-    // Tangkap deeplink saat app baru dibuka (cold start)
     _appLinks.getInitialLink().then((uri) {
-      if (uri != null) {
-        debugPrint('🔗 Deeplink initial: $uri');
-        _handleDeepLink(uri);
-      } else {
-        debugPrint('ℹ️ Tidak ada initial deeplink');
-      }
-    }).catchError((err) {
-      debugPrint('❌ Initial deeplink error: $err');
-    });
+      if (uri != null) _handleDeepLink(uri);
+    }).catchError((_) {});
   }
 
   Future<void> _handleDeepLink(Uri uri) async {
-    debugPrint('📌 Scheme: ${uri.scheme}, Host: ${uri.host}');
-    debugPrint('📌 Params: ${uri.queryParameters}');
-
     if (uri.scheme == 'eduvault' && uri.host == 'auth') {
       final token = uri.queryParameters['token'];
-      final error = uri.queryParameters['error'];
-
       if (token != null && token.isNotEmpty) {
-        debugPrint('✅ Token diterima, login...');
         await ref.read(authProvider.notifier).loginWithGoogleToken(token);
-      } else if (error != null) {
-        debugPrint('❌ OAuth error: $error');
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Bungkus MaterialApp dengan ChangeNotifierProvider
     return legacy.ChangeNotifierProvider(
       create: (_) => OrderProvider(),
       child: MaterialApp(
@@ -89,7 +73,135 @@ class _EduVaultAppState extends ConsumerState<EduVaultApp> {
           fontFamily: 'Roboto',
           useMaterial3: true,
         ),
-        home: const HomeScreen(),
+        home: const MainShell(),
+      ),
+    );
+  }
+}
+
+// ─── Main Shell dengan Bottom Navigation ────────────────────────────
+class MainShell extends ConsumerStatefulWidget {
+  const MainShell({super.key});
+
+  @override
+  ConsumerState<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends ConsumerState<MainShell> {
+  int _currentIndex = 0;
+
+  final List<Widget> _screens = const [
+    HomeScreen(),
+    LibraryScreen(),
+    ProfileScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _screens,
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 20,
+              offset: const Offset(0, -4),
+            ),
+          ],
+        ),
+        child: SafeArea(
+          child: SizedBox(
+            height: 64,
+            child: Row(
+              children: [
+                _NavItem(
+                  icon: Icons.menu_book_rounded,
+                  label: 'Beranda',
+                  isActive: _currentIndex == 0,
+                  onTap: () => setState(() => _currentIndex = 0),
+                ),
+                _NavItem(
+                  icon: Icons.library_books_rounded,
+                  label: 'Koleksi',
+                  isActive: _currentIndex == 1,
+                  onTap: () => setState(() => _currentIndex = 1),
+                ),
+                _NavItem(
+                  icon: Icons.person_rounded,
+                  label: 'Profil',
+                  isActive: _currentIndex == 2,
+                  onTap: () => setState(() => _currentIndex = 2),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NavItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isActive;
+  final VoidCallback onTap;
+
+  const _NavItem({
+    required this.icon,
+    required this.label,
+    required this.isActive,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                decoration: BoxDecoration(
+                  color: isActive
+                      ? const Color(0xFF1D9E75).withOpacity(0.12)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Icon(
+                  icon,
+                  size: 22,
+                  color: isActive
+                      ? const Color(0xFF1D9E75)
+                      : const Color(0xFF9E9E9E),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight:
+                      isActive ? FontWeight.w600 : FontWeight.w400,
+                  color: isActive
+                      ? const Color(0xFF1D9E75)
+                      : const Color(0xFF9E9E9E),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

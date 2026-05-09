@@ -1,17 +1,15 @@
 // lib/features/catalog/screens/home_screen.dart
-// REPLACE file lama dengan file ini
+// REDESIGN sesuai Figma — Dark header, horizontal scroll, trending list
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/catalog_provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../auth/screens/profile_screen.dart';
+import '../../auth/screens/login_screen.dart';
+import '../../admin/screens/admin_dashboard_screen.dart';
 import '../models/ebook_model.dart';
 import 'ebook_detail_screen.dart';
-import '../../auth/screens/login_screen.dart';
-import '../../library/screens/library_screen.dart';
-import '../../admin/screens/admin_dashboard_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +20,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _searchController = TextEditingController();
+  bool _isSearching = false;
+
+  static const _darkBg = Color(0xFF0F1923);
+  static const _accentGreen = Color(0xFF1D9E75);
 
   @override
   void dispose() {
@@ -29,579 +31,436 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
-  void _showPriceFilterSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => const _PriceFilterSheet(),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final catalog = ref.watch(catalogProvider);
     final auth = ref.watch(authProvider);
-
-    // Gunakan filteredEbooks (sudah di-sort/filter client-side)
     final ebooks = catalog.filteredEbooks;
-    final hasFilter = catalog.priceSort != PriceSort.none ||
-        catalog.minPrice != null ||
-        catalog.maxPrice != null;
+
+    // Split into "Baru Dirilis" (first 6) and "Trending" (rest or all sorted by rating)
+    final baruDirilis = ebooks.take(6).toList();
+    final trending = ebooks.skip(6).take(10).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F7F4),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'EduVault',
-          style: TextStyle(
-            fontWeight: FontWeight.w700,
-            color: Color(0xFF1A1A2E),
-            fontSize: 20,
-          ),
-        ),
-        actions: [
-          if (auth.isLoggedIn) ...[
-            // Tombol Admin Panel — hanya tampil untuk role admin
-            if (auth.user?.role == 'admin')
-              IconButton(
-                icon: const Icon(Icons.admin_panel_settings_rounded,
-                    color: Color(0xFF1D9E75)),
-                tooltip: 'Admin Panel',
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => const AdminDashboardScreen()),
-                ),
-              ),
-            IconButton(
-              icon: const Icon(Icons.menu_book_rounded, color: Color(0xFF1D9E75)),
-              tooltip: 'Library Saya',
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LibraryScreen()),
-              ),
-            ),
-            // Avatar → buka ProfileScreen
-            GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: CircleAvatar(
-                  radius: 16,
-                  backgroundImage: auth.user?.avatar != null
-                      ? NetworkImage(auth.user!.avatar!)
-                      : null,
-                  backgroundColor: const Color(0xFF1D9E75),
-                  child: auth.user?.avatar == null
-                      ? Text(
-                          auth.user!.name[0].toUpperCase(),
-                          style: const TextStyle(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: CustomScrollView(
+        slivers: [
+          // ─── Dark App Bar ──────────────────────────────────────
+          SliverAppBar(
+            expandedHeight: 140,
+            floating: false,
+            pinned: true,
+            backgroundColor: _darkBg,
+            elevation: 0,
+            flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.pin,
+              background: Container(
+                color: _darkBg,
+                padding: const EdgeInsets.fromLTRB(16, 50, 16, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Top row: logo + cart
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.menu_book_outlined,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Eduvault',
+                          style: TextStyle(
                             color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                        const Spacer(),
+                        if (auth.isLoggedIn && auth.user?.role == 'admin')
+                          IconButton(
+                            icon: const Icon(Icons.admin_panel_settings_rounded,
+                                color: Color(0xFF1D9E75), size: 22),
+                            onPressed: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                  builder: (_) => const AdminDashboardScreen()),
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          ),
+                        const SizedBox(width: 12),
+                        Stack(
+                          children: [
+                            const Icon(Icons.shopping_bag_outlined,
+                                color: Colors.white, size: 22),
+                            Positioned(
+                              right: 0,
+                              top: 0,
+                              child: Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Colors.redAccent,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    // Search bar
+                    Container(
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E2A35),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: Colors.white.withOpacity(0.08),
+                        ),
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                        ),
+                        decoration: InputDecoration(
+                          hintText: 'Cari buku, penulis, atau kategori...',
+                          hintStyle: TextStyle(
+                            color: Colors.white.withOpacity(0.35),
                             fontSize: 14,
                           ),
-                        )
-                      : null,
-                ),
-              ),
-            ),
-          ] else
-            TextButton(
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              ),
-              child: const Text(
-                'Masuk',
-                style: TextStyle(
-                  color: Color(0xFF1D9E75),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: Column(
-        children: [
-          // ─── Search + Filter bar ──────────────────────────────
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Row(
-              children: [
-                // Search Field
-                Expanded(
-                  child: TextField(
-                    controller: _searchController,
-                    decoration: InputDecoration(
-                      hintText: 'Cari judul buku, mata kuliah...',
-                      hintStyle: const TextStyle(fontSize: 14),
-                      prefixIcon: const Icon(Icons.search, size: 20),
-                      suffixIcon: _searchController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear, size: 18),
-                              onPressed: () {
-                                _searchController.clear();
-                                ref
-                                    .read(catalogProvider.notifier)
-                                    .fetchEbooks();
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: Colors.white.withOpacity(0.4),
+                            size: 20,
+                          ),
+                          suffixIcon: _isSearching
+                              ? IconButton(
+                                  icon: Icon(
+                                    Icons.clear,
+                                    color: Colors.white.withOpacity(0.5),
+                                    size: 18,
+                                  ),
+                                  onPressed: () {
+                                    _searchController.clear();
+                                    setState(() => _isSearching = false);
+                                    ref
+                                        .read(catalogProvider.notifier)
+                                        .fetchEbooks();
+                                  },
+                                )
+                              : null,
+                          border: InputBorder.none,
+                          contentPadding:
+                              const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onChanged: (val) {
+                          setState(() => _isSearching = val.isNotEmpty);
+                        },
+                        onSubmitted: (val) => ref
+                            .read(catalogProvider.notifier)
+                            .fetchEbooks(search: val),
                       ),
-                      filled: true,
-                      fillColor: const Color(0xFFF1EFE8),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 10),
                     ),
-                    onSubmitted: (val) => ref
-                        .read(catalogProvider.notifier)
-                        .fetchEbooks(search: val),
-                    onChanged: (val) => setState(() {}),
-                  ),
+                  ],
                 ),
-                const SizedBox(width: 10),
-                // Filter Price Button
-                GestureDetector(
-                  onTap: _showPriceFilterSheet,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: hasFilter
-                          ? const Color(0xFF1D9E75)
-                          : const Color(0xFFF1EFE8),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      Icons.tune_rounded,
-                      color: hasFilter ? Colors.white : const Color(0xFF5F5E5A),
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
+            // Pinned title when collapsed
+            title: null,
           ),
 
-          // ─── Kategori chips ───────────────────────────────────
-          if (catalog.categories.isNotEmpty)
-            SizedBox(
-              height: 44,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: catalog.categories.length + 1,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (ctx, i) {
-                  if (i == 0) {
-                    return _CategoryChip(
-                      label: 'Semua',
-                      selected: catalog.selectedCategory == null,
-                      onTap: () =>
-                          ref.read(catalogProvider.notifier).fetchEbooks(),
-                    );
-                  }
-                  final cat = catalog.categories[i - 1];
-                  return _CategoryChip(
-                    label: cat.name,
-                    selected: catalog.selectedCategory == cat.slug,
-                    onTap: () => ref
-                        .read(catalogProvider.notifier)
-                        .fetchEbooks(category: cat.slug),
-                  );
-                },
-              ),
-            ),
-
-          // ─── Active filter badge ──────────────────────────────
-          if (hasFilter)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: Row(
+          // ─── Category Chips ────────────────────────────────────
+          SliverToBoxAdapter(
+            child: Container(
+              color: _darkBg,
+              child: Column(
                 children: [
-                  Expanded(
-                    child: Text(
-                      _filterLabel(catalog),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF1D9E75),
+                  if (catalog.categories.isNotEmpty)
+                    SizedBox(
+                      height: 48,
+                      child: ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        itemCount: catalog.categories.length + 1,
+                        separatorBuilder: (_, __) => const SizedBox(width: 8),
+                        itemBuilder: (ctx, i) {
+                          if (i == 0) {
+                            return _CategoryChip(
+                              label: 'Semua',
+                              selected: catalog.selectedCategory == null,
+                              onTap: () => ref
+                                  .read(catalogProvider.notifier)
+                                  .fetchEbooks(),
+                            );
+                          }
+                          final cat = catalog.categories[i - 1];
+                          return _CategoryChip(
+                            label: cat.name,
+                            selected: catalog.selectedCategory == cat.slug,
+                            onTap: () => ref
+                                .read(catalogProvider.notifier)
+                                .fetchEbooks(category: cat.slug),
+                          );
+                        },
                       ),
                     ),
-                  ),
-                  GestureDetector(
-                    onTap: () =>
-                        ref.read(catalogProvider.notifier).resetFilters(),
-                    child: const Text(
-                      'Reset filter',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.redAccent,
-                        fontWeight: FontWeight.w500,
+                  // Bottom curve
+                  Container(
+                    height: 20,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(20),
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+          ),
 
-          const SizedBox(height: 8),
-
-          // ─── Grid buku ────────────────────────────────────────
-          Expanded(
-            child: catalog.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : catalog.errorMessage != null
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.wifi_off_rounded,
-                                size: 48, color: Color(0xFFD1D5DB)),
-                            const SizedBox(height: 16),
-                            Text(
-                              catalog.errorMessage!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                  color: Color(0xFF6B7280), fontSize: 14),
-                            ),
-                            const SizedBox(height: 16),
-                            ElevatedButton.icon(
-                              onPressed: () =>
-                                  ref.read(catalogProvider.notifier).fetchEbooks(),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF1D9E75),
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10)),
-                              ),
-                              icon: const Icon(Icons.refresh, size: 18),
-                              label: const Text('Coba Lagi'),
-                            ),
-                          ],
+          // ─── Content ──────────────────────────────────────────
+          if (catalog.isLoading)
+            const SliverFillRemaining(
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (catalog.errorMessage != null)
+            SliverFillRemaining(
+              child: _ErrorView(
+                message: catalog.errorMessage!,
+                onRetry: () =>
+                    ref.read(catalogProvider.notifier).fetchEbooks(),
+              ),
+            )
+          else ...[
+            // ─── Baru Dirilis Section ─────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Baru Dirilis',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1A2E),
+                      ),
+                    ),
+                    const Spacer(),
+                    GestureDetector(
+                      onTap: () {},
+                      child: const Text(
+                        'Lihat semua',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF1D9E75),
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    )
-                    : ebooks.isEmpty
-                        ? const Center(
-                            child: Text('Tidak ada buku yang sesuai filter.'),
-                          )
-                        : GridView.builder(
-                            padding: const EdgeInsets.all(16),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                              childAspectRatio: 0.62,
-                            ),
-                            itemCount: ebooks.length,
-                            itemBuilder: (ctx, i) => EbookCard(
-                              ebook: ebooks[i],
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      EbookDetailScreen(slug: ebooks[i].slug),
-                                ),
-                              ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Horizontal scroll cards
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: 240,
+                child: baruDirilis.isEmpty
+                    ? const Center(child: Text('Tidak ada buku.'))
+                    : ListView.separated(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                        itemCount: baruDirilis.length,
+                        separatorBuilder: (_, __) => const SizedBox(width: 12),
+                        itemBuilder: (ctx, i) => _HorizontalBookCard(
+                          ebook: baruDirilis[i],
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => EbookDetailScreen(
+                                  slug: baruDirilis[i].slug),
                             ),
                           ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _filterLabel(CatalogState catalog) {
-    final parts = <String>[];
-    if (catalog.priceSort == PriceSort.free) {
-      parts.add('Gratis');
-    } else if (catalog.priceSort == PriceSort.asc) {
-      parts.add('Harga: Murah → Mahal');
-    } else if (catalog.priceSort == PriceSort.desc) {
-      parts.add('Harga: Mahal → Murah');
-    }
-    if (catalog.minPrice != null) {
-      parts.add('Min: Rp ${_fmt(catalog.minPrice!)}');
-    }
-    if (catalog.maxPrice != null) {
-      parts.add('Max: Rp ${_fmt(catalog.maxPrice!)}');
-    }
-    return 'Filter aktif: ${parts.join(' · ')}';
-  }
-
-  String _fmt(double v) =>
-      v.toStringAsFixed(0).replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-            (m) => '${m[1]}.',
-          );
-}
-
-// ──────────────────────────────────────────────────────────────────
-// Price Filter Bottom Sheet
-// ──────────────────────────────────────────────────────────────────
-class _PriceFilterSheet extends ConsumerStatefulWidget {
-  const _PriceFilterSheet();
-
-  @override
-  ConsumerState<_PriceFilterSheet> createState() => _PriceFilterSheetState();
-}
-
-class _PriceFilterSheetState extends ConsumerState<_PriceFilterSheet> {
-  late PriceSort _selectedSort;
-  final _minCtrl = TextEditingController();
-  final _maxCtrl = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    final state = ref.read(catalogProvider);
-    _selectedSort = state.priceSort;
-    if (state.minPrice != null) {
-      _minCtrl.text = state.minPrice!.toStringAsFixed(0);
-    }
-    if (state.maxPrice != null) {
-      _maxCtrl.text = state.maxPrice!.toStringAsFixed(0);
-    }
-  }
-
-  @override
-  void dispose() {
-    _minCtrl.dispose();
-    _maxCtrl.dispose();
-    super.dispose();
-  }
-
-  void _apply() {
-    final notifier = ref.read(catalogProvider.notifier);
-    notifier.setPriceSort(_selectedSort);
-    notifier.setPriceRange(
-      min: _minCtrl.text.isEmpty ? null : double.tryParse(_minCtrl.text),
-      max: _maxCtrl.text.isEmpty ? null : double.tryParse(_maxCtrl.text),
-    );
-    Navigator.pop(context);
-  }
-
-  void _reset() {
-    setState(() {
-      _selectedSort = PriceSort.none;
-      _minCtrl.clear();
-      _maxCtrl.clear();
-    });
-    ref.read(catalogProvider.notifier).resetFilters();
-    Navigator.pop(context);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Handle bar
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: 12),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade300,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-
-          // Title
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
-            child: Text(
-              'Filter & Urutkan Harga',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A1A2E),
-              ),
-            ),
-          ),
-
-          // Sort options
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Wrap(
-              spacing: 8,
-              children: [
-                _SortChip(
-                  label: 'Semua',
-                  icon: Icons.apps,
-                  selected: _selectedSort == PriceSort.none,
-                  onTap: () => setState(() => _selectedSort = PriceSort.none),
-                ),
-                _SortChip(
-                  label: 'Termurah',
-                  icon: Icons.arrow_upward,
-                  selected: _selectedSort == PriceSort.asc,
-                  onTap: () => setState(() => _selectedSort = PriceSort.asc),
-                ),
-                _SortChip(
-                  label: 'Termahal',
-                  icon: Icons.arrow_downward,
-                  selected: _selectedSort == PriceSort.desc,
-                  onTap: () => setState(() => _selectedSort = PriceSort.desc),
-                ),
-                _SortChip(
-                  label: 'Gratis',
-                  icon: Icons.card_giftcard,
-                  selected: _selectedSort == PriceSort.free,
-                  onTap: () => setState(() => _selectedSort = PriceSort.free),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 20),
-
-          // Range harga
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
-              'Rentang Harga (opsional)',
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 14,
-                color: Color(0xFF1A1A2E),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _PriceField(
-                    controller: _minCtrl,
-                    label: 'Harga min',
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _PriceField(
-                    controller: _maxCtrl,
-                    label: 'Harga max',
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Action buttons
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-            child: Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _reset,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
-                      side: const BorderSide(color: Color(0xFFD3D1C7)),
-                    ),
-                    child: const Text('Reset'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton(
-                    onPressed: _apply,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1D9E75),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'Terapkan Filter',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
-          ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+            // ─── Trending Section ─────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Trending Hari Ini',
+                      style: TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF1A1A2E),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    const Text('🔥', style: TextStyle(fontSize: 16)),
+                  ],
+                ),
+              ),
+            ),
+
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final list = trending.isEmpty ? ebooks : trending;
+                  if (i >= list.length) return null;
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: _TrendingBookCard(
+                      ebook: list[i],
+                      rank: i + 1,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              EbookDetailScreen(slug: list[i].slug),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+                childCount:
+                    (trending.isEmpty ? ebooks : trending).length,
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+          ],
         ],
       ),
     );
   }
 }
 
-class _SortChip extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final bool selected;
+// ─── Horizontal Book Card ────────────────────────────────────────────
+class _HorizontalBookCard extends StatelessWidget {
+  final EbookModel ebook;
   final VoidCallback onTap;
 
-  const _SortChip({
-    required this.label,
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
+  const _HorizontalBookCard({required this.ebook, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: selected ? const Color(0xFF1D9E75) : const Color(0xFFF1EFE8),
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
+      child: SizedBox(
+        width: 120,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              icon,
-              size: 14,
-              color: selected ? Colors.white : const Color(0xFF5F5E5A),
+            // Cover
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: ebook.coverUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: ebook.coverUrl!,
+                      height: 160,
+                      width: 120,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => _CoverPlaceholder(
+                        height: 160,
+                        width: 120,
+                      ),
+                      errorWidget: (_, __, ___) => _CoverPlaceholder(
+                        height: 160,
+                        width: 120,
+                      ),
+                    )
+                  : _CoverPlaceholder(height: 160, width: 120),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(height: 8),
+            // Title
             Text(
-              label,
+              ebook.title,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A1A2E),
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            // Author
+            Text(
+              ebook.author ?? '',
+              style: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF888780),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 4),
+            // Rating + format
+            Row(
+              children: [
+                const Icon(Icons.star_rounded,
+                    size: 12, color: Color(0xFFFFC107)),
+                const SizedBox(width: 2),
+                const Text(
+                  '4.8',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A2E),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F5F1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    ebook.price == 0
+                        ? 'FREE'
+                        : ebook.totalPages > 0
+                            ? 'PDF'
+                            : 'EPUB',
+                    style: const TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1D9E75),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 3),
+            // Price
+            Text(
+              ebook.price == 0
+                  ? 'Gratis'
+                  : 'Rp ${_formatPrice(ebook.price)}',
               style: TextStyle(
-                fontSize: 13,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected ? Colors.white : const Color(0xFF5F5E5A),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: ebook.price == 0
+                    ? const Color(0xFF1D9E75)
+                    : const Color(0xFF1A1A2E),
               ),
             ),
           ],
@@ -611,43 +470,179 @@ class _SortChip extends StatelessWidget {
   }
 }
 
-class _PriceField extends StatelessWidget {
-  final TextEditingController controller;
-  final String label;
+// ─── Trending Book Card ──────────────────────────────────────────────
+class _TrendingBookCard extends StatelessWidget {
+  final EbookModel ebook;
+  final int rank;
+  final VoidCallback onTap;
 
-  const _PriceField({required this.controller, required this.label});
+  const _TrendingBookCard({
+    required this.ebook,
+    required this.rank,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(
-        labelText: label,
-        prefixText: 'Rp ',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFD3D1C7)),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFD3D1C7)),
+        child: Row(
+          children: [
+            // Cover
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: ebook.coverUrl != null
+                  ? CachedNetworkImage(
+                      imageUrl: ebook.coverUrl!,
+                      height: 70,
+                      width: 52,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) =>
+                          _CoverPlaceholder(height: 70, width: 52),
+                      errorWidget: (_, __, ___) =>
+                          _CoverPlaceholder(height: 70, width: 52),
+                    )
+                  : _CoverPlaceholder(height: 70, width: 52),
+            ),
+            const SizedBox(width: 12),
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ebook.title,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    ebook.author ?? ebook.category?.name ?? '',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF888780),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.star_rounded,
+                          size: 13, color: Color(0xFFFFC107)),
+                      const SizedBox(width: 2),
+                      const Text(
+                        '4.8',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1A1A2E),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.download_outlined,
+                          size: 13, color: Color(0xFF888780)),
+                      const SizedBox(width: 2),
+                      const Text(
+                        '12k',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF888780),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8F5F1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'PDF',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1D9E75),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    ebook.price == 0
+                        ? 'Gratis'
+                        : 'Rp ${_formatPrice(ebook.price)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Beli button
+            if (ebook.price > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1A1A2E),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Beli',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1D9E75),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Ambil',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+          ],
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF1D9E75), width: 1.5),
-        ),
-        filled: true,
-        fillColor: Colors.white,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       ),
     );
   }
 }
 
-// ──────────────────────────────────────────────────────────────────
-// Category Chip & Ebook Card (sama seperti sebelumnya)
-// ──────────────────────────────────────────────────────────────────
+// ─── Category Chip ──────────────────────────────────────────────────
 class _CategoryChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -664,21 +659,26 @@ class _CategoryChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF1D9E75) : Colors.white,
+          color: selected
+              ? const Color(0xFF1D9E75)
+              : Colors.white.withOpacity(0.08),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selected ? const Color(0xFF1D9E75) : const Color(0xFFD3D1C7),
-          ),
+          border: selected
+              ? null
+              : Border.all(color: Colors.white.withOpacity(0.15)),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 13,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected ? Colors.white : const Color(0xFF5F5E5A),
+            fontWeight:
+                selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected
+                ? Colors.white
+                : Colors.white.withOpacity(0.7),
           ),
         ),
       ),
@@ -686,6 +686,71 @@ class _CategoryChip extends StatelessWidget {
   }
 }
 
+// ─── Shared Widgets ─────────────────────────────────────────────────
+class _CoverPlaceholder extends StatelessWidget {
+  final double height;
+  final double width;
+
+  const _CoverPlaceholder({required this.height, required this.width});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: height,
+      width: width,
+      color: const Color(0xFFE1F5EE),
+      child: const Center(
+        child: Icon(Icons.menu_book_rounded,
+            size: 28, color: Color(0xFF1D9E75)),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+
+  const _ErrorView({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.wifi_off_rounded,
+                size: 48, color: Color(0xFFD1D5DB)),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                  color: Color(0xFF6B7280), fontSize: 14),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1D9E75),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Coba Lagi'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── EbookCard (kept for backward compat) ──────────────────────────
 class EbookCard extends StatelessWidget {
   final EbookModel ebook;
   final VoidCallback onTap;
@@ -714,13 +779,12 @@ class EbookCard extends StatelessWidget {
                       height: 160,
                       width: double.infinity,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        height: 160,
-                        color: const Color(0xFFF1EFE8),
-                      ),
-                      errorWidget: (_, __, ___) => _PlaceholderCover(),
+                      placeholder: (_, __) =>
+                          _CoverPlaceholder(height: 160, width: double.infinity),
+                      errorWidget: (_, __, ___) =>
+                          _CoverPlaceholder(height: 160, width: double.infinity),
                     )
-                  : _PlaceholderCover(),
+                  : _CoverPlaceholder(height: 160, width: double.infinity),
             ),
             Padding(
               padding: const EdgeInsets.all(10),
@@ -750,36 +814,18 @@ class EbookCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
-                  ebook.price == 0
-                      ? Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE1F5EE),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: const Text(
-                            'GRATIS',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF1D9E75),
-                            ),
-                          ),
-                        )
-                      : Text(
-                          'Rp ${ebook.price.toStringAsFixed(0).replaceAllMapped(
-                                RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-                                (m) => '${m[1]}.',
-                              )}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1D9E75),
-                          ),
-                        ),
+                  Text(
+                    ebook.price == 0
+                        ? 'Gratis'
+                        : 'Rp ${_formatPrice(ebook.price)}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: ebook.price == 0
+                          ? const Color(0xFF1D9E75)
+                          : const Color(0xFF1A1A2E),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -790,16 +836,8 @@ class EbookCard extends StatelessWidget {
   }
 }
 
-class _PlaceholderCover extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 160,
-      width: double.infinity,
-      color: const Color(0xFFE1F5EE),
-      child: const Center(
-        child: Icon(Icons.menu_book_rounded, size: 40, color: Color(0xFF1D9E75)),
-      ),
-    );
-  }
-}
+String _formatPrice(double v) =>
+    v.toStringAsFixed(0).replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]}.',
+        );
