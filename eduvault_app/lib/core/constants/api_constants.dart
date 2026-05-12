@@ -19,6 +19,7 @@ class ApiConstants {
 
   // Library
   static const String library = '/library';
+  static String libraryFinish(int id) => '/library/$id/finish';
 
   // Reviews — gunakan ebookReviews(id) untuk dapat URL dinamis
   static String ebookReviews(int ebookId) => '/ebooks/$ebookId/reviews';

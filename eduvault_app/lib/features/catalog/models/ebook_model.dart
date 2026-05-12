@@ -1,5 +1,4 @@
 // lib/features/catalog/models/ebook_model.dart
-// REPLACE file lama dengan file ini
 
 class EbookModel {
   final int id;
@@ -9,12 +8,13 @@ class EbookModel {
   final String? author;
   final double price;
   final String? coverUrl;
-  final String? fileUrl; // hanya diisi saat admin mengambil detail
+  final String? fileUrl;
   final String? djkiCertNo;
   final int totalPages;
   final String status;
   final int? categoryId;
   final CategoryModel? category;
+  final bool isFinished;
 
   EbookModel({
     required this.id,
@@ -30,6 +30,7 @@ class EbookModel {
     required this.status,
     this.categoryId,
     this.category,
+    this.isFinished = false,
   });
 
   factory EbookModel.fromJson(Map<String, dynamic> json) {
@@ -41,7 +42,7 @@ class EbookModel {
       author:      json['author'],
       price:       double.parse(json['price'].toString()),
       coverUrl:    json['cover_url'],
-      fileUrl:     null, // tidak diekspos ke publik
+      fileUrl:     null,
       djkiCertNo:  json['djki_cert_no'],
       totalPages:  json['total_pages'] ?? 0,
       status:      json['status'],
@@ -49,6 +50,7 @@ class EbookModel {
       category:    json['category'] != null
                      ? CategoryModel.fromJson(json['category'])
                      : null,
+      isFinished:  json['is_finished'] == true,
     );
   }
 

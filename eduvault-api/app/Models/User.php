@@ -34,6 +34,7 @@ class User extends Authenticatable
     public function library(): BelongsToMany
     {
         return $this->belongsToMany(Ebook::class, 'user_library')
+                    ->withPivot('is_finished', 'finished_at')
                     ->withTimestamps();
     }
 

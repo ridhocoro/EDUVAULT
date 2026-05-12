@@ -1,5 +1,4 @@
 // lib/features/auth/screens/profile_screen.dart
-// REDESIGN sesuai Figma — Dark header + stats + settings list
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,72 +17,79 @@ class ProfileScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final user = auth.user;
 
-    // Not logged in state
+    // ─── Not logged in ────────────────────────────────────────────
     if (!auth.isLoggedIn || user == null) {
       return Scaffold(
-        backgroundColor: const Color(0xFFF5F5F5),
-        body: Column(
-          children: [
-            // Dark header
-            Container(
-              color: const Color(0xFF0F1923),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-                  child: Column(
-                    children: [
-                      // Avatar placeholder
-                      Container(
-                        width: 72,
-                        height: 72,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.1),
-                        ),
-                        child: Icon(
-                          Icons.person_outline_rounded,
-                          color: Colors.white.withOpacity(0.5),
-                          size: 36,
-                        ),
+        backgroundColor: Colors.white,
+        body: SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Icon avatar
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFFF0F0F0),
+                    ),
+                    child: const Icon(
+                      Icons.person_outline_rounded,
+                      color: Color(0xFFAAAAAA),
+                      size: 44,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Belum Masuk',
+                    style: TextStyle(
+                      color: Color(0xFF1A1A2E),
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Masuk untuk mengakses koleksi\ndan profil kamu',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Color(0xFFAAAAAA),
+                      fontSize: 14,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
-                        'Belum Masuk',
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1D9E75),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 15),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: const Text(
+                        'Masuk ke Akun',
                         style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
                         ),
                       ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
-            Expanded(
-              child: Center(
-                child: ElevatedButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const LoginScreen()),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1D9E75),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 32, vertical: 14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text(
-                    'Masuk ke Akun',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       );
     }
@@ -103,106 +109,74 @@ class ProfileScreen extends ConsumerWidget {
                 bottom: false,
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-                  child: Column(
+                  child: Row(
                     children: [
-                      // Avatar + name
-                      Row(
-                        children: [
-                          // Avatar
-                          Container(
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.white.withOpacity(0.15),
-                                width: 2,
-                              ),
-                            ),
-                            child: CircleAvatar(
-                              radius: 32,
-                              backgroundColor:
-                                  Colors.white.withOpacity(0.1),
-                              backgroundImage: user.avatar != null
-                                  ? CachedNetworkImageProvider(user.avatar!)
-                                  : null,
-                              child: user.avatar == null
-                                  ? Icon(
-                                      Icons.person_rounded,
-                                      color: Colors.white.withOpacity(0.7),
-                                      size: 32,
-                                    )
-                                  : null,
-                            ),
-                          ),
-                          const SizedBox(width: 14),
-                          // Name + badge
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  user.name,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 10, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: isPremium
-                                        ? const Color(0xFF1D9E75)
-                                            .withOpacity(0.2)
-                                        : Colors.white.withOpacity(0.1),
-                                    borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(
-                                      color: isPremium
-                                          ? const Color(0xFF1D9E75)
-                                              .withOpacity(0.5)
-                                          : Colors.white.withOpacity(0.15),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    isPremium
-                                        ? 'Member Premium'
-                                        : 'Member',
-                                    style: TextStyle(
-                                      color: isPremium
-                                          ? const Color(0xFF1D9E75)
-                                          : Colors.white.withOpacity(0.6),
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Stats row
+                      // Avatar
                       Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.07),
-                          borderRadius: BorderRadius.circular(12),
+                          shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.08),
+                            color: Colors.white.withOpacity(0.15),
+                            width: 2,
                           ),
                         ),
-                        child: Row(
+                        child: CircleAvatar(
+                          radius: 32,
+                          backgroundColor: Colors.white.withOpacity(0.1),
+                          backgroundImage: user.avatar != null
+                              ? CachedNetworkImageProvider(user.avatar!)
+                              : null,
+                          child: user.avatar == null
+                              ? Icon(
+                                  Icons.person_rounded,
+                                  color: Colors.white.withOpacity(0.7),
+                                  size: 32,
+                                )
+                              : null,
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      // Name + badge
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _HeaderStat(value: '24', label: 'Buku Dibeli'),
-                            _Divider(),
-                            _HeaderStat(value: '18', label: 'Selesai Dibaca'),
-                            _Divider(),
-                            _HeaderStat(value: '156', label: 'Jam Baca'),
+                            Text(
+                              user.name,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: isPremium
+                                    ? const Color(0xFF1D9E75).withOpacity(0.2)
+                                    : Colors.white.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: isPremium
+                                      ? const Color(0xFF1D9E75).withOpacity(0.5)
+                                      : Colors.white.withOpacity(0.15),
+                                ),
+                              ),
+                              child: Text(
+                                isPremium ? 'Member Premium' : 'Member',
+                                style: TextStyle(
+                                  color: isPremium
+                                      ? const Color(0xFF1D9E75)
+                                      : Colors.white.withOpacity(0.6),
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -218,27 +192,10 @@ class ProfileScreen extends ConsumerWidget {
             _SectionHeader(title: 'Akun'),
             Container(
               color: Colors.white,
-              child: Column(
-                children: [
-                  _SettingsRow(
-                    icon: Icons.email_outlined,
-                    title: 'Email',
-                    subtitle: user.email,
-                  ),
-                  _RowDivider(),
-                  _SettingsRow(
-                    icon: Icons.phone_outlined,
-                    title: 'Nomor Telepon',
-                    subtitle: '+62 812-3456-7890',
-                  ),
-                  _RowDivider(),
-                  _SettingsRow(
-                    icon: Icons.credit_card_outlined,
-                    title: 'Metode Pembayaran',
-                    subtitle: '2 kartu tersimpan',
-                    onTap: () {},
-                  ),
-                ],
+              child: _SettingsRow(
+                icon: Icons.email_outlined,
+                title: 'Email',
+                subtitle: user.email,
               ),
             ),
 
@@ -259,12 +216,9 @@ class ProfileScreen extends ConsumerWidget {
                       subtitle: wishlistCount > 0
                           ? '$wishlistCount buku tersimpan'
                           : 'Buku yang ingin dibeli nanti',
-                      badgeCount:
-                          wishlistCount > 0 ? wishlistCount : null,
+                      badgeCount: wishlistCount > 0 ? wishlistCount : null,
                       onTap: () {
-                        ref
-                            .read(wishlistProvider.notifier)
-                            .loadWishlist();
+                        ref.read(wishlistProvider.notifier).loadWishlist();
                         Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -290,56 +244,33 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            // ─── Pengaturan Section ───────────────────────────────
-            _SectionHeader(title: 'Pengaturan'),
-            Container(
-              color: Colors.white,
-              child: Column(
-                children: [
-                  _SettingsRow(
-                    icon: Icons.settings_outlined,
-                    title: 'Pengaturan Aplikasi',
-                    onTap: () {},
-                  ),
-                  _RowDivider(),
-                  _SettingsRow(
-                    icon: Icons.notifications_none_rounded,
-                    title: 'Notifikasi',
-                    onTap: () {},
-                  ),
-                  _RowDivider(),
-                  _SettingsRow(
-                    icon: Icons.help_outline_rounded,
-                    title: 'Bantuan & Dukungan',
-                    onTap: () {},
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
             // ─── Logout ───────────────────────────────────────────
             Container(
-              color: Colors.white,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
               child: InkWell(
+                borderRadius: BorderRadius.circular(12),
                 onTap: () async {
                   final confirmed = await showDialog<bool>(
                     context: context,
                     builder: (ctx) => AlertDialog(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
                       title: const Text('Keluar'),
                       content: const Text(
                           'Apakah kamu yakin ingin logout dari EduVault?'),
                       actions: [
                         TextButton(
                           onPressed: () => Navigator.pop(ctx, false),
-                          child: const Text('Batal'),
+                          child: const Text('Batal',
+                              style: TextStyle(color: Color(0xFF888888))),
                         ),
                         ElevatedButton(
                           onPressed: () => Navigator.pop(ctx, true),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.redAccent,
                             foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
                           ),
                           child: const Text('Keluar'),
                         ),
@@ -388,53 +319,7 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-// ─── Header Stat ────────────────────────────────────────────────────
-class _HeaderStat extends StatelessWidget {
-  final String value;
-  final String label;
-
-  const _HeaderStat({required this.value, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Column(
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withOpacity(0.5),
-              fontSize: 11,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Divider extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 32,
-      width: 1,
-      color: Colors.white.withOpacity(0.1),
-    );
-  }
-}
-
-// ─── Section Header ─────────────────────────────────────────────────
+// ─── Section Header ──────────────────────────────────────────────────
 class _SectionHeader extends StatelessWidget {
   final String title;
 

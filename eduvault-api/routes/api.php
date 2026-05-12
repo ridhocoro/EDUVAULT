@@ -44,8 +44,9 @@ Route::prefix('v1')->group(function () {
         Route::get('/orders/{code}',     [OrderController::class, 'show']);
 
         // Library user
-        Route::get('/library',           [LibraryController::class, 'index']);
-        Route::get('/library/{id}/read', [LibraryController::class, 'getReadUrl']);
+        Route::get('/library',                [LibraryController::class, 'index']);
+        Route::get('/library/{id}/read',      [LibraryController::class, 'getReadUrl']);
+        Route::post('/library/{id}/finish',   [LibraryController::class, 'finish']);
 
         // Reviews (write - hanya pemilik buku)
         Route::post('/ebooks/{ebookId}/reviews',   [ReviewController::class, 'store']);

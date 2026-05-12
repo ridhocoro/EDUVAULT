@@ -1,13 +1,10 @@
 // lib/features/catalog/screens/home_screen.dart
-// REDESIGN sesuai Figma — Dark header, horizontal scroll, trending list
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/catalog_provider.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../auth/screens/login_screen.dart';
-import '../../admin/screens/admin_dashboard_screen.dart';
 import '../models/ebook_model.dart';
 import 'ebook_detail_screen.dart';
 
@@ -22,9 +19,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _searchController = TextEditingController();
   bool _isSearching = false;
 
-  static const _darkBg = Color(0xFF0F1923);
-  static const _accentGreen = Color(0xFF1D9E75);
-
   @override
   void dispose() {
     _searchController.dispose();
@@ -34,117 +28,62 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final catalog = ref.watch(catalogProvider);
-    final auth = ref.watch(authProvider);
     final ebooks = catalog.filteredEbooks;
 
-    // Split into "Baru Dirilis" (first 6) and "Trending" (rest or all sorted by rating)
     final baruDirilis = ebooks.take(6).toList();
     final trending = ebooks.skip(6).take(10).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: Colors.white,
       body: CustomScrollView(
         slivers: [
-          // ─── Dark App Bar ──────────────────────────────────────
+          // ─── Header dengan Background Putih ───────────────────
           SliverAppBar(
-            expandedHeight: 140,
+            expandedHeight: 40,
             floating: false,
             pinned: true,
-            backgroundColor: _darkBg,
+            backgroundColor: Colors.white,
             elevation: 0,
             flexibleSpace: FlexibleSpaceBar(
               collapseMode: CollapseMode.pin,
               background: Container(
-                color: _darkBg,
-                padding: const EdgeInsets.fromLTRB(16, 50, 16, 0),
+                color: Colors.white,
+                padding: const EdgeInsets.fromLTRB(16, 44, 16, 0),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Top row: logo + cart
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.menu_book_outlined,
-                          color: Colors.white,
-                          size: 22,
-                        ),
-                        const SizedBox(width: 8),
-                        const Text(
-                          'Eduvault',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.3,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (auth.isLoggedIn && auth.user?.role == 'admin')
-                          IconButton(
-                            icon: const Icon(Icons.admin_panel_settings_rounded,
-                                color: Color(0xFF1D9E75), size: 22),
-                            onPressed: () => Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (_) => const AdminDashboardScreen()),
-                            ),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
-                          ),
-                        const SizedBox(width: 12),
-                        Stack(
-                          children: [
-                            const Icon(Icons.shopping_bag_outlined,
-                                color: Colors.white, size: 22),
-                            Positioned(
-                              right: 0,
-                              top: 0,
-                              child: Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Colors.redAccent,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 14),
                     // Search bar
                     Container(
                       height: 44,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E2A35),
+                        color: Colors.grey.shade100,
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: Colors.white.withOpacity(0.08),
+                          color: Colors.grey.shade300,
                         ),
                       ),
                       child: TextField(
                         controller: _searchController,
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: Color(0xFF1A1A2E),
                           fontSize: 14,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Cari buku, penulis, atau kategori...',
                           hintStyle: TextStyle(
-                            color: Colors.white.withOpacity(0.35),
+                            color: Colors.grey.shade500,
                             fontSize: 14,
                           ),
                           prefixIcon: Icon(
                             Icons.search,
-                            color: Colors.white.withOpacity(0.4),
+                            color: Colors.grey.shade500,
                             size: 20,
                           ),
                           suffixIcon: _isSearching
                               ? IconButton(
                                   icon: Icon(
                                     Icons.clear,
-                                    color: Colors.white.withOpacity(0.5),
+                                    color: Colors.grey.shade500,
                                     size: 18,
                                   ),
                                   onPressed: () {
@@ -172,14 +111,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
-            // Pinned title when collapsed
             title: null,
           ),
 
           // ─── Category Chips ────────────────────────────────────
           SliverToBoxAdapter(
             child: Container(
-              color: _darkBg,
+              color: Colors.white,
               child: Column(
                 children: [
                   if (catalog.categories.isNotEmpty)
@@ -187,7 +125,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       height: 48,
                       child: ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                         itemCount: catalog.categories.length + 1,
                         separatorBuilder: (_, __) => const SizedBox(width: 8),
                         itemBuilder: (ctx, i) {
@@ -211,16 +149,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         },
                       ),
                     ),
-                  // Bottom curve
-                  Container(
-                    height: 20,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF5F5F5),
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -240,10 +168,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             )
           else ...[
-            // ─── Baru Dirilis Section ─────────────────────────
+            // Baru Dirilis
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 12),
                 child: Row(
                   children: [
                     const Text(
@@ -271,15 +199,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ),
 
-            // Horizontal scroll cards
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 240,
+                height: 230,
                 child: baruDirilis.isEmpty
                     ? const Center(child: Text('Tidak ada buku.'))
                     : ListView.separated(
                         scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
                         itemCount: baruDirilis.length,
                         separatorBuilder: (_, __) => const SizedBox(width: 12),
                         itemBuilder: (ctx, i) => _HorizontalBookCard(
@@ -298,7 +225,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-            // ─── Trending Section ─────────────────────────────
+            // Trending
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
@@ -339,14 +266,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                   );
                 },
-                childCount:
-                    (trending.isEmpty ? ebooks : trending).length,
+                childCount: (trending.isEmpty ? ebooks : trending).length,
               ),
             ),
 
-            const SliverToBoxAdapter(child: SizedBox(height: 16)),
+            // Bottom padding
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ─── Category Chip ──────────────────────────────────────────────────
+class _CategoryChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _CategoryChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected
+              ? const Color(0xFF1D9E75)
+              : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20),
+          border: selected
+              ? null
+              : Border.all(color: Colors.grey.shade300),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+            color: selected ? Colors.white : const Color(0xFF1A1A2E),
+          ),
+        ),
       ),
     );
   }
@@ -368,7 +336,6 @@ class _HorizontalBookCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Cover
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: ebook.coverUrl != null
@@ -389,7 +356,6 @@ class _HorizontalBookCard extends StatelessWidget {
                   : _CoverPlaceholder(height: 160, width: 120),
             ),
             const SizedBox(height: 8),
-            // Title
             Text(
               ebook.title,
               style: const TextStyle(
@@ -400,8 +366,7 @@ class _HorizontalBookCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
-            const SizedBox(height: 2),
-            // Author
+            const SizedBox(height: 4),
             Text(
               ebook.author ?? '',
               style: const TextStyle(
@@ -412,45 +377,6 @@ class _HorizontalBookCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 4),
-            // Rating + format
-            Row(
-              children: [
-                const Icon(Icons.star_rounded,
-                    size: 12, color: Color(0xFFFFC107)),
-                const SizedBox(width: 2),
-                const Text(
-                  '4.8',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A1A2E),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE8F5F1),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    ebook.price == 0
-                        ? 'FREE'
-                        : ebook.totalPages > 0
-                            ? 'PDF'
-                            : 'EPUB',
-                    style: const TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1D9E75),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            // Price
             Text(
               ebook.price == 0
                   ? 'Gratis'
@@ -501,6 +427,20 @@ class _TrendingBookCard extends StatelessWidget {
         ),
         child: Row(
           children: [
+            // Rank
+            SizedBox(
+              width: 32,
+              child: Text(
+                '$rank',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1D9E75),
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(width: 8),
             // Cover
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
@@ -510,10 +450,8 @@ class _TrendingBookCard extends StatelessWidget {
                       height: 70,
                       width: 52,
                       fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          _CoverPlaceholder(height: 70, width: 52),
-                      errorWidget: (_, __, ___) =>
-                          _CoverPlaceholder(height: 70, width: 52),
+                      placeholder: (_, __) => _CoverPlaceholder(height: 70, width: 52),
+                      errorWidget: (_, __, ___) => _CoverPlaceholder(height: 70, width: 52),
                     )
                   : _CoverPlaceholder(height: 70, width: 52),
             ),
@@ -542,50 +480,6 @@ class _TrendingBookCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.star_rounded,
-                          size: 13, color: Color(0xFFFFC107)),
-                      const SizedBox(width: 2),
-                      const Text(
-                        '4.8',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF1A1A2E),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.download_outlined,
-                          size: 13, color: Color(0xFF888780)),
-                      const SizedBox(width: 2),
-                      const Text(
-                        '12k',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Color(0xFF888780),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 5, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5F1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: const Text(
-                          'PDF',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1D9E75),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
                   Text(
                     ebook.price == 0
                         ? 'Gratis'
@@ -599,42 +493,6 @@ class _TrendingBookCard extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: 8),
-            // Beli button
-            if (ebook.price > 0)
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A2E),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Beli',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1D9E75),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Text(
-                  'Ambil',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -642,51 +500,7 @@ class _TrendingBookCard extends StatelessWidget {
   }
 }
 
-// ─── Category Chip ──────────────────────────────────────────────────
-class _CategoryChip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _CategoryChip({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected
-              ? const Color(0xFF1D9E75)
-              : Colors.white.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: selected
-              ? null
-              : Border.all(color: Colors.white.withOpacity(0.15)),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight:
-                selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected
-                ? Colors.white
-                : Colors.white.withOpacity(0.7),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Shared Widgets ─────────────────────────────────────────────────
+// ─── Cover Placeholder ──────────────────────────────────────────────
 class _CoverPlaceholder extends StatelessWidget {
   final double height;
   final double width;
@@ -700,13 +514,13 @@ class _CoverPlaceholder extends StatelessWidget {
       width: width,
       color: const Color(0xFFE1F5EE),
       child: const Center(
-        child: Icon(Icons.menu_book_rounded,
-            size: 28, color: Color(0xFF1D9E75)),
+        child: Icon(Icons.menu_book_rounded, size: 28, color: Color(0xFF1D9E75)),
       ),
     );
   }
 }
 
+// ─── Error View ─────────────────────────────────────────────────────
 class _ErrorView extends StatelessWidget {
   final String message;
   final VoidCallback onRetry;
@@ -721,14 +535,12 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.wifi_off_rounded,
-                size: 48, color: Color(0xFFD1D5DB)),
+            const Icon(Icons.wifi_off_rounded, size: 48, color: Color(0xFFD1D5DB)),
             const SizedBox(height: 16),
             Text(
               message,
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                  color: Color(0xFF6B7280), fontSize: 14),
+              style: const TextStyle(color: Color(0xFF6B7280), fontSize: 14),
             ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
@@ -738,7 +550,8 @@ class _ErrorView extends StatelessWidget {
                 foregroundColor: Colors.white,
                 elevation: 0,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
               icon: const Icon(Icons.refresh, size: 18),
               label: const Text('Coba Lagi'),
@@ -750,94 +563,10 @@ class _ErrorView extends StatelessWidget {
   }
 }
 
-// ─── EbookCard (kept for backward compat) ──────────────────────────
-class EbookCard extends StatelessWidget {
-  final EbookModel ebook;
-  final VoidCallback onTap;
-
-  const EbookCard({super.key, required this.ebook, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE8E6DF), width: 0.5),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
-              child: ebook.coverUrl != null
-                  ? CachedNetworkImage(
-                      imageUrl: ebook.coverUrl!,
-                      height: 160,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) =>
-                          _CoverPlaceholder(height: 160, width: double.infinity),
-                      errorWidget: (_, __, ___) =>
-                          _CoverPlaceholder(height: 160, width: double.infinity),
-                    )
-                  : _CoverPlaceholder(height: 160, width: double.infinity),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (ebook.category != null)
-                    Text(
-                      ebook.category!.name,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF1D9E75),
-                        fontWeight: FontWeight.w500,
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  const SizedBox(height: 4),
-                  Text(
-                    ebook.title,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF1A1A2E),
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    ebook.price == 0
-                        ? 'Gratis'
-                        : 'Rp ${_formatPrice(ebook.price)}',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: ebook.price == 0
-                          ? const Color(0xFF1D9E75)
-                          : const Color(0xFF1A1A2E),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+// ─── Helper Functions ───────────────────────────────────────────────
+String _formatPrice(double v) {
+  return v.toStringAsFixed(0).replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+        (m) => '${m[1]}.',
+      );
 }
-
-String _formatPrice(double v) =>
-    v.toStringAsFixed(0).replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-          (m) => '${m[1]}.',
-        );
