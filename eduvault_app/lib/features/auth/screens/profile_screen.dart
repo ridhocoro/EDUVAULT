@@ -8,6 +8,7 @@ import '../../wishlist/screens/wishlist_screen.dart';
 import '../../wishlist/providers/wishlist_provider.dart';
 import '../../order/screens/order_history_screen.dart';
 import '../../auth/screens/login_screen.dart';
+import '../../admin/screens/admin_dashboard_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -17,7 +18,7 @@ class ProfileScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final user = auth.user;
 
-    // ─── Not logged in ────────────────────────────────────────────
+    // ─── Not logged in ─────────────────────────────────────────────
     if (!auth.isLoggedIn || user == null) {
       return Scaffold(
         backgroundColor: Colors.white,
@@ -28,13 +29,12 @@ class ProfileScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Icon avatar
                   Container(
                     width: 88,
                     height: 88,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
-                      color: const Color(0xFFF0F0F0),
+                      color: Color(0xFFF0F0F0),
                     ),
                     child: const Icon(
                       Icons.person_outline_rounded,
@@ -94,7 +94,7 @@ class ProfileScreen extends ConsumerWidget {
       );
     }
 
-    final isPremium = user.role == 'admin';
+    final isAdmin = user.role == 'admin';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -102,7 +102,7 @@ class ProfileScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ─── Dark Header ─────────────────────────────────────
+            // ─── Dark Header ────────────────────────────────────────
             Container(
               color: const Color(0xFF0F1923),
               child: SafeArea(
@@ -156,20 +156,20 @@ class ProfileScreen extends ConsumerWidget {
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 3),
                               decoration: BoxDecoration(
-                                color: isPremium
+                                color: isAdmin
                                     ? const Color(0xFF1D9E75).withOpacity(0.2)
                                     : Colors.white.withOpacity(0.1),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
-                                  color: isPremium
+                                  color: isAdmin
                                       ? const Color(0xFF1D9E75).withOpacity(0.5)
                                       : Colors.white.withOpacity(0.15),
                                 ),
                               ),
                               child: Text(
-                                isPremium ? 'Member Premium' : 'Member',
+                                isAdmin ? 'Administrator' : 'Member',
                                 style: TextStyle(
-                                  color: isPremium
+                                  color: isAdmin
                                       ? const Color(0xFF1D9E75)
                                       : Colors.white.withOpacity(0.6),
                                   fontSize: 11,
@@ -188,7 +188,27 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            // ─── Akun Section ─────────────────────────────────────
+            // ─── Admin Panel Banner (hanya role admin) ─────────────
+            if (isAdmin) ...[
+              _SectionHeader(title: 'Administrasi'),
+              Container(
+                color: Colors.white,
+                child: _SettingsRow(
+                  icon: Icons.admin_panel_settings_rounded,
+                  iconColor: const Color(0xFF1D9E75),
+                  title: 'Admin Panel',
+                  subtitle: 'Kelola buku, kategori & statistik',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const AdminDashboardScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            // ─── Akun Section ───────────────────────────────────────
             _SectionHeader(title: 'Akun'),
             Container(
               color: Colors.white,
@@ -201,7 +221,7 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            // ─── Koleksi Section ──────────────────────────────────
+            // ─── Koleksi Section ────────────────────────────────────
             _SectionHeader(title: 'Koleksi'),
             Container(
               color: Colors.white,
@@ -244,7 +264,7 @@ class ProfileScreen extends ConsumerWidget {
 
             const SizedBox(height: 20),
 
-            // ─── Logout ───────────────────────────────────────────
+            // ─── Logout ─────────────────────────────────────────────
             Container(
               margin: const EdgeInsets.symmetric(horizontal: 16),
               child: InkWell(
@@ -319,10 +339,9 @@ class ProfileScreen extends ConsumerWidget {
   }
 }
 
-// ─── Section Header ──────────────────────────────────────────────────
+// ─── Section Header ───────────────────────────────────────────────────
 class _SectionHeader extends StatelessWidget {
   final String title;
-
   const _SectionHeader({required this.title});
 
   @override
@@ -342,9 +361,10 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-// ─── Settings Row ────────────────────────────────────────────────────
+// ─── Settings Row ─────────────────────────────────────────────────────
 class _SettingsRow extends StatelessWidget {
   final IconData icon;
+  final Color? iconColor;
   final String title;
   final String? subtitle;
   final VoidCallback? onTap;
@@ -352,6 +372,7 @@ class _SettingsRow extends StatelessWidget {
 
   const _SettingsRow({
     required this.icon,
+    this.iconColor,
     required this.title,
     this.subtitle,
     this.onTap,
@@ -366,7 +387,7 @@ class _SettingsRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
-            Icon(icon, size: 20, color: const Color(0xFF888780)),
+            Icon(icon, size: 20, color: iconColor ?? const Color(0xFF888780)),
             const SizedBox(width: 14),
             Expanded(
               child: Column(

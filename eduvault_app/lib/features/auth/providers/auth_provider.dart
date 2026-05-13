@@ -1,5 +1,4 @@
 // lib/features/auth/providers/auth_provider.dart
-// REPLACE file lama dengan file ini
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
@@ -68,12 +67,43 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
+  Future<bool> register(String name, String email, String password) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
+    try {
+      final res = await ApiService.dio.post(ApiConstants.register, data: {
+        'name': name,
+        'email': email,
+        'password': password,
+        'password_confirmation': password,
+      });
+      await TokenStorage.saveToken(res.data['token']);
+      state = state.copyWith(
+        isLoading: false,
+        user: UserModel.fromJson(res.data['user']),
+      );
+      return true;
+    } on DioException catch (e) {
+      // Laravel validation error — ambil pesan pertama dari errors map
+      final errors = e.response?.data?['errors'];
+      String msg;
+      if (errors is Map && errors.isNotEmpty) {
+        final firstList = errors.values.first;
+        msg = (firstList is List && firstList.isNotEmpty)
+            ? firstList.first.toString()
+            : 'Registrasi gagal.';
+      } else {
+        msg = e.response?.data?['message'] ?? 'Registrasi gagal. Coba lagi.';
+      }
+      state = state.copyWith(isLoading: false, errorMessage: msg);
+      return false;
+    }
+  }
+
   /// Dipanggil setelah deeplink OAuth berhasil membawa token
   Future<bool> loginWithGoogleToken(String token) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
       await TokenStorage.saveToken(token);
-      // Ambil data user dari API pakai token ini
       final res = await ApiService.dio.get(ApiConstants.me);
       state = state.copyWith(
         isLoading: false,

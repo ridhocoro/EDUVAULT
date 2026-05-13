@@ -1,11 +1,12 @@
 // lib/features/auth/screens/login_screen.dart
-// REPLACE file lama dengan file ini
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../admin/screens/admin_dashboard_screen.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -20,6 +21,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passCtrl = TextEditingController();
   bool _obscure = true;
   bool _googleLoading = false;
+  bool _formLoginInProgress = false;
 
   @override
   void dispose() {
@@ -31,17 +33,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
-    final success = await ref.read(authProvider.notifier).login(
-      _emailCtrl.text.trim(),
-      _passCtrl.text,
-    );
+    _formLoginInProgress = true;
 
-    if (success && mounted) {
+    final success = await ref.read(authProvider.notifier).login(
+          _emailCtrl.text.trim(),
+          _passCtrl.text,
+        );
+
+    _formLoginInProgress = false;
+
+    if (!success || !mounted) return;
+
+    final user = ref.read(authProvider).user;
+
+    if (user?.role == 'admin') {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+      );
+    } else {
       Navigator.pop(context);
     }
   }
 
-  /// Buka Google OAuth di browser — backend akan redirect ke deeplink eduvault://auth?token=...
   Future<void> _loginWithGoogle() async {
     setState(() => _googleLoading = true);
     try {
@@ -50,7 +64,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
       if (await canLaunchUrl(url)) {
         await launchUrl(url, mode: LaunchMode.externalApplication);
-        // Hasil OAuth ditangani oleh AppLinks listener di main.dart
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -79,9 +92,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         );
       }
-      // Jika berhasil login (dari OAuth), tutup screen
-      if (next.isLoggedIn && prev?.isLoggedIn == false) {
-        Navigator.pop(context);
+      // Hanya handle navigasi dari OAuth path
+      if (!_formLoginInProgress &&
+          next.isLoggedIn &&
+          prev?.isLoggedIn == false) {
+        if (!mounted) return;
+        final user = next.user;
+        if (user?.role == 'admin') {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => const AdminDashboardScreen()),
+          );
+        } else {
+          Navigator.pop(context);
+        }
       }
     });
 
@@ -141,7 +165,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         : Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // Google icon (SVG-like manual draw)
                               _GoogleIcon(),
                               const SizedBox(width: 12),
                               const Text(
@@ -159,17 +182,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 const SizedBox(height: 20),
 
-                // Divider
-                Row(children: [
-                  const Expanded(child: Divider()),
-                  const Padding(
+                // ─── Divider ──────────────────────────────────────
+                const Row(children: [
+                  Expanded(child: Divider()),
+                  Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Text(
                       'atau masuk dengan email',
-                      style: TextStyle(color: Color(0xFF888780), fontSize: 13),
+                      style:
+                          TextStyle(color: Color(0xFF888780), fontSize: 13),
                     ),
                   ),
-                  const Expanded(child: Divider()),
+                  Expanded(child: Divider()),
                 ]),
 
                 const SizedBox(height: 20),
@@ -188,7 +212,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 TextFormField(
                   controller: _passCtrl,
                   obscureText: _obscure,
-                  decoration: _inputDeco('Password', Icons.lock_outline).copyWith(
+                  decoration:
+                      _inputDeco('Password', Icons.lock_outline).copyWith(
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscure ? Icons.visibility_off : Icons.visibility,
@@ -204,7 +229,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 28),
 
-                // ─── Login Button ────────────────────────────────
+                // ─── Login Button ─────────────────────────────────
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -239,7 +264,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                 const SizedBox(height: 24),
 
-                // Link daftar
+                // ─── Link daftar ──────────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -248,9 +273,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       style: TextStyle(color: Color(0xFF5F5E5A)),
                     ),
                     GestureDetector(
-                      onTap: () {
-                        // TODO: Navigator ke RegisterScreen
-                      },
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const RegisterScreen()),
+                      ),
                       child: const Text(
                         'Daftar sekarang',
                         style: TextStyle(
@@ -291,7 +318,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-/// Google "G" icon manual — tidak perlu package tambahan
+// ─── Google "G" icon ──────────────────────────────────────────────────
 class _GoogleIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -308,13 +335,10 @@ class _GooglePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2;
-    final r = size.width / 2;
 
-    // Background circle
     final bgPaint = Paint()..color = Colors.white;
-    canvas.drawCircle(Offset(cx, cy), r, bgPaint);
+    canvas.drawCircle(Offset(cx, cy), size.width / 2, bgPaint);
 
-    // Simple "G" shape using text
     final tp = TextPainter(
       text: const TextSpan(
         text: 'G',
