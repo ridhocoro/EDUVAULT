@@ -40,4 +40,19 @@ class ApiConstants {
   static String chat(int bookId) => '/books/$bookId/chat';
   static String chatStream(int bookId) => '/books/$bookId/chat/stream';
   static String chatHistory(int bookId) => '/books/$bookId/chat/history';
+
+  static String trialChat(int ebookId)        => '/ebooks/$ebookId/trial-chat';
+  static String trialChatStatus(int ebookId)  => '/ebooks/$ebookId/trial-chat/status';
+  static String trialChatHistory(int ebookId) => '/ebooks/$ebookId/trial-chat/history';
+
+  // Quiz (untuk buku yang sudah dibeli — via library)
+  static String quiz(int ebookId)             => '/library/$ebookId/quiz';
+  static String quizSubmit(int ebookId)       => '/library/$ebookId/quiz/submit';
+
+  // Admin Quiz
+  static String adminQuiz(int ebookId)        => '/admin/ebooks/$ebookId/quiz';
+  static String adminQuizGenerate(int ebookId)=> '/admin/ebooks/$ebookId/quiz/generate';
+  static String adminQuizQuestion(int qId)    => '/admin/quiz-questions/$qId';
+  static String adminQuizPublish(int quizId)  => '/admin/quizzes/$quizId/publish';
+  static String adminQuizDelete(int quizId)   => '/admin/quizzes/$quizId';
 }

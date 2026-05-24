@@ -10,6 +10,7 @@ import '../widgets/reviews_section.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../chat/screens/chat_screen.dart';
+import '../../trial_chat/screens/trial_chat_screen.dart';
 
 class EbookDetailScreen extends ConsumerStatefulWidget {
   final String slug;
@@ -128,6 +129,30 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
       MaterialPageRoute(
         builder: (context) => ChatScreen(
           bookId: _ebook!.id,
+          bookTitle: _ebook!.title,
+          bookCover: _ebook!.coverUrl,
+        ),
+      ),
+    );
+  }
+  
+  void _openTrialChat() {
+    if (_ebook == null) return;
+    final auth = ref.read(authProvider);
+    if (!auth.isLoggedIn) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const LoginScreen()),
+      ).then((_) {
+        if (ref.read(authProvider).isLoggedIn) _openTrialChat();
+      });
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TrialChatScreen(
+          ebookId: _ebook!.id,
           bookTitle: _ebook!.title,
           bookCover: _ebook!.coverUrl,
         ),
@@ -352,7 +377,7 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
       // ============================================
       // FLOATING ACTION BUTTON CHAT
       // HANYA MUNCUL JIKA BUKU SUDAH DIBELI (_owned == true)
-      // ============================================
+      // ===========================================
       floatingActionButton: _owned
           ? FloatingActionButton.extended(
               onPressed: _openChat,
@@ -365,7 +390,17 @@ class _EbookDetailScreenState extends ConsumerState<EbookDetailScreen> {
                 borderRadius: BorderRadius.circular(28),
               ),
             )
-          : null,
+          : FloatingActionButton.extended(
+              onPressed: _openTrialChat,
+              icon: const Icon(Icons.auto_awesome_outlined),
+              label: const Text('Coba Tanya AI'),
+              backgroundColor: const Color(0xFF5F5E5A),
+              foregroundColor: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+            ),
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }

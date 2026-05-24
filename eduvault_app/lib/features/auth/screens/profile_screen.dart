@@ -102,9 +102,9 @@ class ProfileScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ─── Dark Header ────────────────────────────────────────
+            // ─── Light Header ───────────────────────────────────────
             Container(
-              color: const Color(0xFF0F1923),
+              color: Colors.white,
               child: SafeArea(
                 bottom: false,
                 child: Padding(
@@ -116,20 +116,20 @@ class ProfileScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.15),
+                            color: const Color(0xFFDDDDDD),
                             width: 2,
                           ),
                         ),
                         child: CircleAvatar(
                           radius: 32,
-                          backgroundColor: Colors.white.withOpacity(0.1),
+                          backgroundColor: const Color(0xFFEEEEEE),
                           backgroundImage: user.avatar != null
                               ? CachedNetworkImageProvider(user.avatar!)
                               : null,
                           child: user.avatar == null
                               ? Icon(
                                   Icons.person_rounded,
-                                  color: Colors.white.withOpacity(0.7),
+                                  color: const Color(0xFF888888),
                                   size: 32,
                                 )
                               : null,
@@ -144,7 +144,7 @@ class ProfileScreen extends ConsumerWidget {
                             Text(
                               user.name,
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: Color(0xFF1A1A2E),
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                               ),
@@ -158,12 +158,12 @@ class ProfileScreen extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: isAdmin
                                     ? const Color(0xFF1D9E75).withOpacity(0.2)
-                                    : Colors.white.withOpacity(0.1),
+                                    : const Color(0xFFF0F0F0),
                                 borderRadius: BorderRadius.circular(20),
                                 border: Border.all(
                                   color: isAdmin
                                       ? const Color(0xFF1D9E75).withOpacity(0.5)
-                                      : Colors.white.withOpacity(0.15),
+                                      : const Color(0xFFCCCCCC),
                                 ),
                               ),
                               child: Text(
@@ -171,7 +171,7 @@ class ProfileScreen extends ConsumerWidget {
                                 style: TextStyle(
                                   color: isAdmin
                                       ? const Color(0xFF1D9E75)
-                                      : Colors.white.withOpacity(0.6),
+                                      : const Color(0xFF666666),
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),

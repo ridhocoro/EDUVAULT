@@ -7,6 +7,7 @@ import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../catalog/models/ebook_model.dart';
 import 'reader_screen.dart';
+import '../../quiz/screens/quiz_screen.dart';
 
 enum LibraryTab { semua, selesai }
 
@@ -92,6 +93,18 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
         );
       }
     }
+  }
+
+  Future<void> _openQuiz(EbookModel ebook) async {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuizScreen(
+          ebookId: ebook.id,
+          bookTitle: ebook.title,
+        ),
+      ),
+    );
   }
 
   Future<void> _markFinished(EbookModel ebook) async {
@@ -272,6 +285,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
                               onMarkFinished: ebook.isFinished
                                   ? null
                                   : () => _markFinished(ebook),
+                                  onQuiz: () => _openQuiz(ebook),
                             );
                           },
                         ),
@@ -322,12 +336,14 @@ class _StatBox extends StatelessWidget {
 class _LibraryBookCard extends StatelessWidget {
   final EbookModel ebook;
   final VoidCallback onRead;
-  final VoidCallback? onMarkFinished; // null = sudah selesai
+  final VoidCallback? onMarkFinished; 
+  final VoidCallback onQuiz; // null = sudah selesai
 
   const _LibraryBookCard({
     required this.ebook,
     required this.onRead,
     required this.onMarkFinished,
+    required this.onQuiz,
   });
 
   @override
@@ -449,6 +465,26 @@ class _LibraryBookCard extends StatelessWidget {
                     ),
                     style: TextButton.styleFrom(
                       foregroundColor: const Color(0xFF1A1A2E),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.zero,
+                      ),
+                    ),
+                  ),
+                ),
+
+                Container(
+                  width: 1,
+                  height: 32,
+                  color: const Color(0xFF000000).withOpacity(0.06),
+                ),
+                Expanded(
+                  child: TextButton.icon(
+                    onPressed: onQuiz,   // ← callback baru
+                    icon: const Icon(Icons.quiz_outlined, size: 16),
+                    label: const Text('Quiz', style: TextStyle(fontSize: 13)),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF1D9E75),
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       shape: const RoundedRectangleBorder(
                         borderRadius: BorderRadius.zero,

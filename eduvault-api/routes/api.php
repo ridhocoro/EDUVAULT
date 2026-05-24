@@ -12,6 +12,8 @@ use App\Http\Controllers\Api\Admin\DashboardController;
 use App\Http\Controllers\Api\Admin\EbookController as AdminEbookController;
 use App\Http\Controllers\Api\Admin\CategoryController as AdminCategoryController;
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
+use App\Http\Controllers\Api\TrialChatController;
+use App\Http\Controllers\Api\QuizController;
 
 // ─── Public routes (guest bisa akses) ─────────────────────────────
 Route::prefix('v1')->group(function () {
@@ -58,6 +60,13 @@ Route::prefix('v1')->group(function () {
         Route::delete('/wishlist/{ebookId}',       [WishlistController::class, 'destroy']);
         Route::get('/wishlist/{ebookId}/check',    [WishlistController::class, 'check']);
 
+        // ─── TRIAL AI CHAT (login required, buku BELUM dibeli) ────────────
+        Route::prefix('ebooks/{ebookId}')->group(function () {
+            Route::get('/trial-chat/status',  [TrialChatController::class, 'status']);
+            Route::post('/trial-chat',        [TrialChatController::class, 'send']);
+            Route::get('/trial-chat/history', [TrialChatController::class, 'history']);
+        });
+
         // ============================================
         // 🤖 AI CHAT (hanya untuk buku yang sudah dibeli)
         // ============================================
@@ -65,6 +74,11 @@ Route::prefix('v1')->group(function () {
             Route::post('/chat',           [ChatController::class, 'send']);
             Route::post('/chat/stream',    [ChatController::class, 'sendStream']);
             Route::get('/chat/history',    [ChatController::class, 'history']);
+        });
+
+        Route::middleware('verify.book.ownership')->prefix('library/{book_id}')->group(function () {
+        Route::get('/quiz',        [QuizController::class, 'show']);
+        Route::post('/quiz/submit',[QuizController::class, 'submit']);
         });
 
         // ─── Admin routes (perlu login + role admin) ──────────────
@@ -98,6 +112,12 @@ Route::prefix('v1')->group(function () {
             Route::get('/users',                         [AdminUserController::class, 'index']);
             Route::patch('/users/{id}/promote',          [AdminUserController::class, 'promoteToAdmin']);
             Route::patch('/users/{id}/demote',           [AdminUserController::class, 'demoteToUser']);
+            
+            Route::get('/ebooks/{ebookId}/quiz',          [QuizController::class, 'adminShow']);
+            Route::post('/ebooks/{ebookId}/quiz/generate',[QuizController::class, 'generate']);
+            Route::put('/quiz-questions/{questionId}',    [QuizController::class, 'updateQuestion']);
+            Route::patch('/quizzes/{quizId}/publish',     [QuizController::class, 'publish']);
+            Route::delete('/quizzes/{quizId}',            [QuizController::class, 'destroy']);
         });
     });
 });

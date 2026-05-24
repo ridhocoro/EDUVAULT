@@ -7,6 +7,7 @@ import '../providers/catalog_provider.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../models/ebook_model.dart';
 import 'ebook_detail_screen.dart';
+import 'all_books_screen.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -184,7 +185,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ),
                     const Spacer(),
                     GestureDetector(
-                      onTap: () {},
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AllBooksScreen(),
+                        ),
+                      ),
                       child: const Text(
                         'Lihat semua',
                         style: TextStyle(

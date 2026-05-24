@@ -10,7 +10,7 @@ import '../models/admin_models.dart';
 import '../../catalog/models/ebook_model.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
-
+import '../../quiz/screens/quiz_management_screen.dart';
 // Warna tema
 const _green = Color(0xFF1D9E75);
 const _bg = Color(0xFFF8F7F4);
@@ -1454,6 +1454,22 @@ class _EbookTile extends StatelessWidget {
                             : const Color(0xFFEF4444),
                         onTap: onToggle,
                       ),
+                       const SizedBox(width: 6),
+                        IconButton(
+                          icon: const Icon(Icons.quiz_outlined, size: 18),
+                          tooltip: 'Kelola Quiz',
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => QuizManagementScreen(
+                                ebookId: ebook.id,
+                                ebookTitle: ebook.title,
+                              ),
+                            ),
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
                     ],
                   ),
                 ],
