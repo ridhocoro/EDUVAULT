@@ -207,7 +207,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
             SliverToBoxAdapter(
               child: SizedBox(
-                height: 230,
+                height: 245,
                 child: baruDirilis.isEmpty
                     ? const Center(child: Text('Tidak ada buku.'))
                     : ListView.separated(
