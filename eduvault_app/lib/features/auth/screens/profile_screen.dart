@@ -9,6 +9,7 @@ import '../../wishlist/providers/wishlist_provider.dart';
 import '../../order/screens/order_history_screen.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../admin/screens/admin_dashboard_screen.dart';
+import '../../catalog/providers/catalog_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -198,11 +199,16 @@ class ProfileScreen extends ConsumerWidget {
                   iconColor: const Color(0xFF1D9E75),
                   title: 'Admin Panel',
                   subtitle: 'Kelola buku, kategori & statistik',
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
                         builder: (_) => const AdminDashboardScreen()),
-                  ),
+                    );
+                    if (context.mounted) {
+                      ref.read(catalogProvider.notifier).fetchEbooks();
+                    }
+                  },
                 ),
               ),
               const SizedBox(height: 20),

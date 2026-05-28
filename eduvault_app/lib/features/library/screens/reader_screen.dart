@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:dio/dio.dart';
 import 'package:path_provider/path_provider.dart';
+import '../../quiz/screens/quiz_screen.dart';
 
 class ReaderScreen extends StatefulWidget {
   final String title;
-  final String pdfUrl;   // signed URL dari server
+  final String pdfUrl;
+  final int ebookId; // ← TAMBAHAN: diperlukan untuk navigasi ke QuizScreen
 
-  const ReaderScreen({super.key, required this.title, required this.pdfUrl});
+  const ReaderScreen({
+    super.key,
+    required this.title,
+    required this.pdfUrl,
+    required this.ebookId,
+  });
 
   @override
   State<ReaderScreen> createState() => _ReaderScreenState();
@@ -25,17 +32,29 @@ class _ReaderScreenState extends State<ReaderScreen> {
     _downloadPdf();
   }
 
-  // Download PDF ke temp folder (tidak bisa diakses user di luar app)
   Future<void> _downloadPdf() async {
     try {
       final dir = await getTemporaryDirectory();
-      final path = '${dir.path}/reading_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final path =
+          '${dir.path}/reading_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
       await Dio().download(widget.pdfUrl, path);
       if (mounted) setState(() { _localPath = path; _loading = false; });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _openQuiz() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuizScreen(
+          ebookId: widget.ebookId,
+          bookTitle: widget.title,
+        ),
+      ),
+    );
   }
 
   @override
@@ -45,17 +64,25 @@ class _ReaderScreenState extends State<ReaderScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF2C2C2A),
         foregroundColor: Colors.white,
-        title: Text(widget.title,
-            style: const TextStyle(fontSize: 14),
-            overflow: TextOverflow.ellipsis),
+        title: Text(
+          widget.title,
+          style: const TextStyle(fontSize: 14),
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
+          // ── Tombol Quiz ──────────────────────────────────────
+          IconButton(
+            icon: const Icon(Icons.quiz_outlined, color: Colors.white),
+            tooltip: 'Quiz',
+            onPressed: _openQuiz,
+          ),
+          // ── Nomor halaman ────────────────────────────────────
           if (_totalPages > 0)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Text(
                 '${_currentPage + 1} / $_totalPages',
-                style: const TextStyle(
-                    color: Colors.white70, fontSize: 13),
+                style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
             ),
         ],

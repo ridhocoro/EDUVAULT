@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/catalog_provider.dart';
-import '../../auth/providers/auth_provider.dart';
 import '../models/ebook_model.dart';
 import 'ebook_detail_screen.dart';
 import 'all_books_screen.dart';
@@ -36,8 +35,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: CustomScrollView(
-        slivers: [
+      body: RefreshIndicator(
+        onRefresh: () => ref.read(catalogProvider.notifier).fetchEbooks(),
+        color: const Color(0xFF1D9E75),
+        child: CustomScrollView(
+          slivers: [
           // ─── Header dengan Background Putih ───────────────────
           SliverAppBar(
             expandedHeight: 40,
@@ -232,12 +234,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
             // Trending
-            SliverToBoxAdapter(
+            const SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                padding: EdgeInsets.fromLTRB(16, 0, 16, 12),
                 child: Row(
                   children: [
-                    const Text(
+                    Text(
                       'Trending Hari Ini',
                       style: TextStyle(
                         fontSize: 17,
@@ -245,8 +247,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         color: Color(0xFF1A1A2E),
                       ),
                     ),
-                    const SizedBox(width: 6),
-                    const Text('🔥', style: TextStyle(fontSize: 16)),
+                    SizedBox(width: 6),
+                    Text('🔥', style: TextStyle(fontSize: 16)),
                   ],
                 ),
               ),
@@ -280,7 +282,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
           ],
         ],
-      ),
+        ),
+      )
     );
   }
 }

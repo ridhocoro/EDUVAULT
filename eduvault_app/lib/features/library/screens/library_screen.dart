@@ -135,7 +135,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => ReaderScreen(title: ebook.title, pdfUrl: readUrl),
+            builder: (_) => ReaderScreen(title: ebook.title, pdfUrl: readUrl, ebookId: ebook.id),
           ),
         );
       }
