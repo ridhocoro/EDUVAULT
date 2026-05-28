@@ -35,6 +35,7 @@ class ApiConstants {
   static const String adminCategories = '/admin/categories';
   static const String adminUsers      = '/admin/users';
   static String adminEbookUpload(int id) => '/admin/ebooks/$id/upload-file';
+  static String adminEbookUploadCover(int id) => '/admin/ebooks/$id/upload-cover';
   static String adminEbookDetail(int id) => '/admin/ebooks/$id';
 
   static String chat(int bookId) => '/books/$bookId/chat';

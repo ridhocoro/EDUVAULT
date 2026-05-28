@@ -45,6 +45,23 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
         _fetchLibrary();
       }
     });
+
+    // Dengarkan perubahan auth — fetch otomatis saat user login
+    ref.listenManual(authProvider, (previous, next) {
+      final wasLoggedIn = previous?.isLoggedIn ?? false;
+      final isNowLoggedIn = next.isLoggedIn;
+      if (!wasLoggedIn && isNowLoggedIn && mounted) {
+        _fetchLibrary();
+      }
+      // Reset library saat logout
+      if (wasLoggedIn && !isNowLoggedIn && mounted) {
+        setState(() {
+          _library = [];
+          _loading = false;
+          _error = null;
+        });
+      }
+    });
   }
 
   @override
@@ -292,31 +309,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen>
                       ),
                       child: const Text(
                         'Masuk ke Akun',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const LoginScreen()),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF1A1A2E),
-                        side: const BorderSide(color: Color(0xFFDDDDDD)),
-                        padding: const EdgeInsets.symmetric(vertical: 15),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text(
-                        'Daftar Akun Baru',
                         style: TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 15,

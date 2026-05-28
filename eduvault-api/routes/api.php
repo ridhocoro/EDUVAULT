@@ -101,6 +101,10 @@ Route::prefix('v1')->group(function () {
             Route::post('/ebooks/{id}/upload-file',      [AdminEbookController::class, 'uploadFile']);
             Route::delete('/ebooks/{id}/upload-file',    [AdminEbookController::class, 'deleteFile']);
 
+            // Upload / hapus cover gambar
+            Route::post('/ebooks/{id}/upload-cover',     [AdminEbookController::class, 'uploadCover']);
+            Route::delete('/ebooks/{id}/upload-cover',   [AdminEbookController::class, 'deleteCover']);
+
             // Category CRUD
             Route::get('/categories',                    [AdminCategoryController::class, 'index']);
             Route::post('/categories',                   [AdminCategoryController::class, 'store']);

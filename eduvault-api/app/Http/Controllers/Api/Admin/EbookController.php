@@ -224,6 +224,73 @@ class EbookController extends Controller
     }
 
     /**
+     * Upload gambar cover untuk sebuah buku.
+     * Menerima file image (jpg/jpeg/png/webp), simpan ke storage/app/public/covers/{id}/
+     * dan update kolom cover_url di tabel ebooks dengan full public URL.
+     */
+    public function uploadCover(Request $request, int $id)
+    {
+        $ebook = Ebook::findOrFail($id);
+
+        $request->validate([
+            'cover' => 'required|file|mimes:jpg,jpeg,png,webp|max:5120', // max 5 MB
+        ]);
+
+        // Hapus cover lama dari storage jika disimpan lokal (bukan URL eksternal)
+        $oldCover = $ebook->getRawOriginal('cover_url');
+        if ($oldCover && !str_starts_with($oldCover, 'http')) {
+            if (Storage::disk('public')->exists($oldCover)) {
+                Storage::disk('public')->delete($oldCover);
+            }
+        }
+
+        $file = $request->file('cover');
+        $filename = 'cover_' . time() . '.' . $file->getClientOriginalExtension();
+        $path = $file->storeAs("covers/{$id}", $filename, 'public');
+
+        // Simpan full public URL ke DB agar langsung bisa dipakai di frontend
+        $fullUrl = Storage::disk('public')->url($path);
+        $ebook->update(['cover_url' => $fullUrl]);
+
+        return response()->json([
+            'message'   => 'Cover berhasil diupload.',
+            'cover_url' => $fullUrl,
+        ]);
+    }
+
+    /**
+     * Hapus cover dari storage dan kosongkan cover_url di DB.
+     */
+    public function deleteCover(int $id)
+    {
+        $ebook = Ebook::findOrFail($id);
+
+        $coverUrl = $ebook->getRawOriginal('cover_url');
+
+        if (empty($coverUrl)) {
+            return response()->json(['message' => 'Tidak ada cover untuk dihapus.'], 404);
+        }
+
+        // Hanya hapus file fisik jika disimpan lokal
+        if (!str_starts_with($coverUrl, 'http')) {
+            if (Storage::disk('public')->exists($coverUrl)) {
+                Storage::disk('public')->delete($coverUrl);
+            }
+        } else {
+            // Cover dari URL eksternal — coba parse path relatifnya
+            $parsed = parse_url($coverUrl, PHP_URL_PATH);
+            $storagePath = ltrim(str_replace('/storage/', '', $parsed), '/');
+            if ($storagePath && Storage::disk('public')->exists($storagePath)) {
+                Storage::disk('public')->delete($storagePath);
+            }
+        }
+
+        $ebook->update(['cover_url' => null]);
+
+        return response()->json(['message' => 'Cover berhasil dihapus.']);
+    }
+
+    /**
      * Hapus permanen buku — hard delete
      */
     public function destroy(int $id)

@@ -4,6 +4,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:dio/dio.dart' as dio_pkg;
 import '../providers/admin_provider.dart';
 import '../models/admin_models.dart';
@@ -609,10 +610,14 @@ class _EbookFormSheetState extends ConsumerState<_EbookFormSheet> {
   String _status = 'draft';
   int? _categoryId;
 
-  // Upload state
+  // Upload state — file PDF/EPUB
   String? _existingFileUrl;   // path file yang sudah ada di server
   String? _uploadedFileName;  // nama file setelah upload berhasil
   bool _isUploading = false;
+
+  // Upload state — cover gambar
+  String? _coverPreviewUrl;   // URL cover terkini (untuk preview)
+  bool _isUploadingCover = false;
 
   @override
   void initState() {
@@ -628,6 +633,7 @@ class _EbookFormSheetState extends ConsumerState<_EbookFormSheet> {
     _status = b?.status ?? 'draft';
     _categoryId = b?.categoryId ?? b?.category?.id;
     _existingFileUrl = b?.fileUrl;
+    _coverPreviewUrl = b?.coverUrl;
   }
 
   @override
@@ -688,6 +694,58 @@ class _EbookFormSheetState extends ConsumerState<_EbookFormSheet> {
       setState(() => _isUploading = false);
       if (mounted) {
         _showSnack(context, 'Gagal upload: ${e.toString()}', isError: true);
+      }
+    }
+  }
+
+  // ── Upload cover gambar ──────────────────────────────────────
+  Future<void> _pickAndUploadCover() async {
+    if (widget.ebook == null) {
+      _showSnack(context, 'Simpan buku terlebih dahulu sebelum upload cover.', isError: true);
+      return;
+    }
+
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 85,
+      maxWidth: 800,
+    );
+    if (picked == null) return;
+
+    setState(() => _isUploadingCover = true);
+
+    try {
+      final formData = dio_pkg.FormData.fromMap({
+        'cover': await dio_pkg.MultipartFile.fromFile(
+          picked.path,
+          filename: picked.name,
+        ),
+      });
+
+      final res = await ApiService.dio.post(
+        ApiConstants.adminEbookUploadCover(widget.ebook!.id),
+        data: formData,
+        options: dio_pkg.Options(
+          headers: {'Content-Type': 'multipart/form-data'},
+        ),
+      );
+
+      final newCoverUrl = res.data['cover_url'] as String?;
+      setState(() {
+        _coverPreviewUrl = newCoverUrl;
+        _cover.text = newCoverUrl ?? '';
+        _isUploadingCover = false;
+      });
+
+      if (mounted) {
+        _showSnack(context, 'Cover berhasil diupload!');
+        ref.read(adminProvider.notifier).loadEbooks();
+      }
+    } catch (e) {
+      setState(() => _isUploadingCover = false);
+      if (mounted) {
+        _showSnack(context, 'Gagal upload cover: ${e.toString()}', isError: true);
       }
     }
   }
@@ -824,9 +882,102 @@ class _EbookFormSheetState extends ConsumerState<_EbookFormSheet> {
                     ]),
                     _field('Deskripsi', _desc, maxLines: 3),
                     _field('No. Sertifikat DJKI', _djki),
-                    _field('URL Cover', _cover,
-                        keyboard: TextInputType.url,
-                        hint: 'https://...'),
+                    // ── Cover Gambar ────────────────────────
+                    const SizedBox(height: 8),
+                    const Text('Cover Buku',
+                        style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _grey)),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Preview cover
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: _coverPreviewUrl != null
+                              ? Image.network(
+                                  _coverPreviewUrl!,
+                                  width: 72,
+                                  height: 96,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _coverPlaceholder(),
+                                )
+                              : _coverPlaceholder(),
+                        ),
+                        const SizedBox(width: 12),
+                        // Tombol aksi cover
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (isEdit) ...[
+                                OutlinedButton.icon(
+                                  onPressed: _isUploadingCover ? null : _pickAndUploadCover,
+                                  icon: _isUploadingCover
+                                      ? const SizedBox(
+                                          width: 14, height: 14,
+                                          child: CircularProgressIndicator(
+                                              strokeWidth: 2, color: _green),
+                                        )
+                                      : const Icon(Icons.image_rounded,
+                                          color: _green, size: 16),
+                                  label: Text(
+                                    _isUploadingCover
+                                        ? 'Mengupload...'
+                                        : _coverPreviewUrl != null
+                                            ? 'Ganti Cover'
+                                            : 'Upload Cover',
+                                    style: const TextStyle(
+                                        color: _green, fontSize: 13),
+                                  ),
+                                  style: OutlinedButton.styleFrom(
+                                    side: const BorderSide(color: _green),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 10),
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                              ],
+                              // URL manual sebagai fallback
+                              TextFormField(
+                                controller: _cover,
+                                keyboardType: TextInputType.url,
+                                style: const TextStyle(fontSize: 13),
+                                decoration: InputDecoration(
+                                  hintText: 'Atau paste URL cover...',
+                                  hintStyle: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade400),
+                                  isDense: true,
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                        color: Colors.grey.shade300),
+                                  ),
+                                  enabledBorder: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                    borderSide: BorderSide(
+                                        color: Colors.grey.shade300),
+                                  ),
+                                  contentPadding:
+                                      const EdgeInsets.symmetric(
+                                          horizontal: 10, vertical: 8),
+                                ),
+                                onChanged: (v) {
+                                  // Live preview saat paste URL manual
+                                  if (v.startsWith('http')) {
+                                    setState(() => _coverPreviewUrl = v.trim());
+                                  }
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
 
                     // ── Upload File PDF/EPUB ────────────────────
                     const SizedBox(height: 8),
@@ -1012,6 +1163,20 @@ class _EbookFormSheetState extends ConsumerState<_EbookFormSheet> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _coverPlaceholder() {
+    return Container(
+      width: 72,
+      height: 96,
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F4F2),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: const Icon(Icons.image_outlined,
+          size: 28, color: Color(0xFF1D9E75)),
     );
   }
 
