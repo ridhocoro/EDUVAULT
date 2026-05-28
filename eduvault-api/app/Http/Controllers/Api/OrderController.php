@@ -14,7 +14,6 @@ class OrderController extends Controller
 {
     public function __construct()
     {
-        // Konfigurasi Midtrans dari services.php / .env
         MidtransConfig::$serverKey    = config('services.midtrans.server_key');
         MidtransConfig::$isProduction = config('services.midtrans.is_production');
         MidtransConfig::$isSanitized  = config('services.midtrans.is_sanitized');
@@ -62,14 +61,13 @@ class OrderController extends Controller
                 ]);
             }
 
-            // ── Generate Snap Token Midtrans ──────────────────────
             $user = $request->user();
 
             $itemDetails = $ebooks->map(fn ($e) => [
                 'id'       => (string) $e->id,
                 'price'    => (int) $e->price,
                 'quantity' => 1,
-                'name'     => mb_substr($e->title, 0, 50), // Midtrans max 50 char
+                'name'     => mb_substr($e->title, 0, 50),
             ])->values()->toArray();
 
             $params = [
@@ -85,15 +83,14 @@ class OrderController extends Controller
             ];
 
             $snapToken = Snap::getSnapToken($params);
-
             $order->update(['midtrans_token' => $snapToken]);
 
             DB::commit();
 
             return response()->json([
-                'order'       => $order->load('items.ebook'),
-                'snap_token'  => $snapToken,
-                'client_key'  => config('services.midtrans.client_key'),
+                'order'      => $order->load('items.ebook.category'),
+                'snap_token' => $snapToken,
+                'client_key' => config('services.midtrans.client_key'),
             ], 201);
 
         } catch (\Exception $e) {
@@ -107,22 +104,26 @@ class OrderController extends Controller
     // ── Riwayat order user ────────────────────────────────────────
     public function index(Request $request)
     {
-        // Mengambil data order milik user dengan relasi ebook dan urutan terbaru
         $orders = Order::where('user_id', $request->user()->id)
-                    ->with('items.ebook')
-                    ->latest()
-                    ->paginate(10); // Menggunakan pagination agar aplikasi tidak berat
+            ->with([
+                'items' => fn ($q) => $q->select('id', 'order_id', 'ebook_id', 'price'),
+                'items.ebook' => fn ($q) => $q->select(
+                    'id', 'title', 'author', 'cover_url', 'price', 'total_pages', 'category_id'
+                ),
+                'items.ebook.category' => fn ($q) => $q->select('id', 'name'),
+            ])
+            ->latest()
+            ->paginate(10);
 
-        // Mengembalikan response dalam format yang konsisten untuk Flutter
         return response()->json([
             'success' => true,
             'message' => 'Riwayat transaksi berhasil diambil',
-            'data'    => $orders->items(), // Mengambil data list order saja
+            'data'    => $orders->items(),
             'meta'    => [
                 'current_page' => $orders->currentPage(),
                 'last_page'    => $orders->lastPage(),
                 'total'        => $orders->total(),
-            ]
+            ],
         ], 200);
     }
 
@@ -130,19 +131,27 @@ class OrderController extends Controller
     public function show(Request $request, string $code)
     {
         $order = Order::where('user_id', $request->user()->id)
-                    ->where('order_code', $code)
-                    ->with('items.ebook')
-                    ->firstOrFail();
+            ->where('order_code', $code)
+            ->with([
+                'items' => fn ($q) => $q->select('id', 'order_id', 'ebook_id', 'price'),
+                'items.ebook' => fn ($q) => $q->select(
+                    'id', 'title', 'author', 'cover_url', 'price', 'total_pages', 'category_id'
+                ),
+                'items.ebook.category' => fn ($q) => $q->select('id', 'name'),
+            ])
+            ->firstOrFail();
 
-        return response()->json($order);
+        return response()->json([
+            'success' => true,
+            'data'    => $order,
+        ]);
     }
 
-    // ── Webhook Midtrans (dipanggil otomatis oleh server Midtrans) ─
+    // ── Webhook Midtrans ──────────────────────────────────────────
     public function paymentNotification(Request $request)
     {
         $data = $request->all();
 
-        // Verifikasi signature key
         $signatureKey = hash('sha512',
             $data['order_id'] .
             $data['status_code'] .
@@ -165,7 +174,6 @@ class OrderController extends Controller
         $status = $data['transaction_status'] ?? '';
 
         if (in_array($status, ['capture', 'settlement'])) {
-            // Hindari double-processing jika sudah paid
             if ($order->status === 'paid') {
                 return response()->json(['message' => 'Already processed.']);
             }
@@ -176,7 +184,6 @@ class OrderController extends Controller
                 'paid_at'        => now(),
             ]);
 
-            // Masukkan semua buku ke library user
             foreach ($order->items as $item) {
                 DB::table('user_library')->insertOrIgnore([
                     'user_id'      => $order->user_id,

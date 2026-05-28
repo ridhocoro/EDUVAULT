@@ -1,3 +1,5 @@
+// lib/core/services/api_service.dart
+
 import 'package:dio/dio.dart';
 import '../constants/api_constants.dart';
 import '../utils/token_storage.dart';
@@ -17,21 +19,12 @@ class ApiService {
 
   static Dio get dio => _dio;
 
-  // Method get agar OrderProvider bisa memanggil ApiService.get('/orders')
   static Future<Map<String, dynamic>> get(String endpoint) async {
     try {
       final response = await _dio.get(endpoint);
-      
-      // Dio otomatis mengubah JSON menjadi Map<String, dynamic>
-      // Jika response.data sudah berupa Map, kita langsung kembalikan
-      if (response.data is Map<String, dynamic>) {
-        return response.data;
-      }
-      
-      // Jika karena suatu hal data bukan Map, kita bungkus agar tidak error di provider
+      if (response.data is Map<String, dynamic>) return response.data;
       return {'data': response.data};
     } on DioException catch (e) {
-      // Menangkap error dari server atau koneksi
       return {
         'success': false,
         'message': e.response?.data['message'] ?? e.message,
@@ -42,12 +35,19 @@ class ApiService {
 
 class _AuthInterceptor extends Interceptor {
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  Future<void> onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
+    // PERBAIKAN: tambahkan Future<void> sebagai return type dan
+    // gunakan "return handler.next()" agar Dio benar-benar menunggu
+    // token terbaca dari secure storage sebelum request diteruskan.
+    // Tanpa ini, header Authorization tidak terpasang → server 401.
     final token = await TokenStorage.getToken();
     if (token != null) {
       options.headers['Authorization'] = 'Bearer $token';
     }
-    handler.next(options);
+    return handler.next(options);
   }
 
   @override

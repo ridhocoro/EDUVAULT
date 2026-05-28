@@ -83,7 +83,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       return true;
     } on DioException catch (e) {
-      // Laravel validation error — ambil pesan pertama dari errors map
       final errors = e.response?.data?['errors'];
       String msg;
       if (errors is Map && errors.isNotEmpty) {
@@ -99,12 +98,25 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Dipanggil setelah deeplink OAuth berhasil membawa token
+  /// Dipanggil setelah deeplink OAuth berhasil membawa token.
+  /// PERBAIKAN: token disimpan dulu, lalu baru buat instance Dio baru
+  /// dengan token tersebut secara eksplisit — tidak bergantung pada
+  /// interceptor yang bisa race condition.
   Future<bool> loginWithGoogleToken(String token) async {
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
+      // 1. Simpan token ke secure storage terlebih dahulu
       await TokenStorage.saveToken(token);
-      final res = await ApiService.dio.get(ApiConstants.me);
+
+      // 2. Panggil /auth/me dengan header Authorization eksplisit
+      //    agar tidak bergantung sepenuhnya pada interceptor async
+      final res = await ApiService.dio.get(
+        ApiConstants.me,
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+
       state = state.copyWith(
         isLoading: false,
         user: UserModel.fromJson(res.data),

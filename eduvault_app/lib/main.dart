@@ -1,27 +1,43 @@
+// lib/main.dart
+
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:provider/provider.dart' as legacy;
 import 'package:app_links/app_links.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/order/providers/order_provider.dart';
 import 'features/catalog/screens/home_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/auth/screens/profile_screen.dart';
 
-void main() async {
+// ─── Singleton AppLinks + pending URI ────────────────────────────────
+// Diinisialisasi sebelum runApp agar tidak ada deeplink yang terlewat
+// saat app baru dibuka dari background oleh Android Intent.
+final _appLinks = AppLinks();
+Uri? _pendingUri; // simpan URI jika datang sebelum widget siap
+
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  await initializeDateFormatting('id_ID', null);
+
+  // Tangkap cold-start URI sedini mungkin — sebelum runApp
+  try {
+    _pendingUri = await _appLinks.getInitialLink();
+  } catch (_) {}
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
     ),
   );
-  runApp(
-    const ProviderScope(
-      child: EduVaultApp(),
-    ),
-  );
+
+  runApp(const ProviderScope(child: EduVaultApp()));
 }
 
 class EduVaultApp extends ConsumerStatefulWidget {
@@ -32,7 +48,7 @@ class EduVaultApp extends ConsumerStatefulWidget {
 }
 
 class _EduVaultAppState extends ConsumerState<EduVaultApp> {
-  final _appLinks = AppLinks();
+  StreamSubscription<Uri>? _linkSub;
 
   @override
   void initState() {
@@ -40,22 +56,50 @@ class _EduVaultAppState extends ConsumerState<EduVaultApp> {
     _initDeepLinks();
   }
 
+  @override
+  void dispose() {
+    _linkSub?.cancel();
+    super.dispose();
+  }
+
   void _initDeepLinks() {
-    _appLinks.uriLinkStream.listen(
-      (Uri uri) async => await _handleDeepLink(uri),
+    // 1. Proses cold-start URI yang sudah ditangkap di main()
+    if (_pendingUri != null) {
+      final uri = _pendingUri!;
+      _pendingUri = null;
+      // Post-frame agar provider sudah terikat ke widget tree
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleDeepLink(uri);
+      });
+    }
+
+    // 2. Warm-start — app sudah jalan, deeplink masuk lewat stream
+    _linkSub = _appLinks.uriLinkStream.listen(
+      (Uri uri) => _handleDeepLink(uri),
       onError: (_) {},
+      cancelOnError: false,
     );
-    _appLinks.getInitialLink().then((uri) {
-      if (uri != null) _handleDeepLink(uri);
-    }).catchError((_) {});
   }
 
   Future<void> _handleDeepLink(Uri uri) async {
-    if (uri.scheme == 'eduvault' && uri.host == 'auth') {
-      final token = uri.queryParameters['token'];
-      if (token != null && token.isNotEmpty) {
-        await ref.read(authProvider.notifier).loginWithGoogleToken(token);
+    if (uri.scheme != 'eduvault' || uri.host != 'auth') return;
+
+    final error = uri.queryParameters['error'];
+    if (error != null && error.isNotEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          SnackBar(
+            content: Text('Login Google gagal: $error'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
       }
+      return;
+    }
+
+    final token = uri.queryParameters['token'];
+    if (token != null && token.isNotEmpty) {
+      await ref.read(authProvider.notifier).loginWithGoogleToken(token);
     }
   }
 
@@ -79,7 +123,7 @@ class _EduVaultAppState extends ConsumerState<EduVaultApp> {
   }
 }
 
-// ─── Main Shell dengan Bottom Navigation ────────────────────────────
+// ─── Main Shell dengan Bottom Navigation ─────────────────────────────
 class MainShell extends ConsumerStatefulWidget {
   const MainShell({super.key});
 
@@ -172,7 +216,8 @@ class _NavItem extends StatelessWidget {
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 decoration: BoxDecoration(
                   color: isActive
                       ? const Color(0xFF1D9E75).withOpacity(0.12)
