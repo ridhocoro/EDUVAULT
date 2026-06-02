@@ -1,10 +1,13 @@
 <?php
+// app/Http/Controllers/Api/OrderController.php — REPLACE file lama
+// Perubahan: paymentNotification sekarang handle order_type = subscription
 
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Ebook;
 use App\Models\Order;
+use App\Models\UserSubscription;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Midtrans\Config as MidtransConfig;
@@ -16,11 +19,11 @@ class OrderController extends Controller
     {
         MidtransConfig::$serverKey    = config('services.midtrans.server_key');
         MidtransConfig::$isProduction = config('services.midtrans.is_production');
-        MidtransConfig::$isSanitized  = config('services.midtrans.is_sanitized');
-        MidtransConfig::$is3ds        = config('services.midtrans.is_3ds');
+        MidtransConfig::$isSanitized  = config('services.midtrans.is_sanitized', true);
+        MidtransConfig::$is3ds        = config('services.midtrans.is_3ds', true);
     }
 
-    // ── Buat order + dapatkan Snap Token Midtrans ─────────────────
+    // ── Buat order beli satuan ─────────────────────────────────────
     public function store(Request $request)
     {
         $data = $request->validate([
@@ -52,6 +55,7 @@ class OrderController extends Controller
                 'midtrans_order_id' => 'EDU-' . strtoupper(uniqid()),
                 'total_amount'      => $totalAmount,
                 'status'            => 'pending',
+                'order_type'        => 'ebook',
             ]);
 
             foreach ($ebooks as $ebook) {
@@ -75,7 +79,7 @@ class OrderController extends Controller
                     'order_id'     => $order->midtrans_order_id,
                     'gross_amount' => (int) $totalAmount,
                 ],
-                'item_details'    => $itemDetails,
+                'item_details'     => $itemDetails,
                 'customer_details' => [
                     'first_name' => $user->name,
                     'email'      => $user->email,
@@ -124,7 +128,7 @@ class OrderController extends Controller
                 'last_page'    => $orders->lastPage(),
                 'total'        => $orders->total(),
             ],
-        ], 200);
+        ]);
     }
 
     // ── Detail satu order ─────────────────────────────────────────
@@ -133,21 +137,14 @@ class OrderController extends Controller
         $order = Order::where('user_id', $request->user()->id)
             ->where('order_code', $code)
             ->with([
-                'items' => fn ($q) => $q->select('id', 'order_id', 'ebook_id', 'price'),
-                'items.ebook' => fn ($q) => $q->select(
-                    'id', 'title', 'author', 'cover_url', 'price', 'total_pages', 'category_id'
-                ),
-                'items.ebook.category' => fn ($q) => $q->select('id', 'name'),
+                'items.ebook.category',
             ])
             ->firstOrFail();
 
-        return response()->json([
-            'success' => true,
-            'data'    => $order,
-        ]);
+        return response()->json(['success' => true, 'data' => $order]);
     }
 
-    // ── Webhook Midtrans ──────────────────────────────────────────
+    // ── Webhook Midtrans — menangani ebook DAN subscription ───────
     public function paymentNotification(Request $request)
     {
         $data = $request->all();
@@ -184,16 +181,56 @@ class OrderController extends Controller
                 'paid_at'        => now(),
             ]);
 
-            foreach ($order->items as $item) {
-                DB::table('user_library')->insertOrIgnore([
-                    'user_id'      => $order->user_id,
-                    'ebook_id'     => $item->ebook_id,
-                    'order_id'     => $order->id,
-                    'license_type' => 'individual',
-                    'created_at'   => now(),
-                    'updated_at'   => now(),
-                ]);
+            // ── Beli satuan ebook ────────────────────────────────
+            if ($order->order_type === 'ebook') {
+                foreach ($order->items as $item) {
+                    DB::table('user_library')->insertOrIgnore([
+                        'user_id'     => $order->user_id,
+                        'ebook_id'    => $item->ebook_id,
+                        'order_id'    => $order->id,
+                        'license_type'=> 'individual',
+                        'source_type' => 'purchase',
+                        'created_at'  => now(),
+                        'updated_at'  => now(),
+                    ]);
+                }
+
+            // ── Beli subscription ────────────────────────────────
+            } elseif ($order->order_type === 'subscription' && $order->subscription_plan_id) {
+                $plan = \App\Models\SubscriptionPlan::with('ebooks')
+                    ->find($order->subscription_plan_id);
+
+                if ($plan) {
+                    $startsAt  = now();
+                    $expiresAt = now()->addDays($plan->duration_days);
+
+                    // Buat record UserSubscription
+                    $sub = UserSubscription::create([
+                        'user_id'              => $order->user_id,
+                        'subscription_plan_id' => $plan->id,
+                        'order_id'             => $order->id,
+                        'starts_at'            => $startsAt,
+                        'expires_at'           => $expiresAt,
+                        'status'               => 'active',
+                    ]);
+
+                    // Tambahkan tiap buku dalam paket ke library user
+                    foreach ($plan->ebooks as $ebook) {
+                        DB::table('user_library')->insertOrIgnore([
+                            'user_id'         => $order->user_id,
+                            'ebook_id'        => $ebook->id,
+                            'order_id'        => $order->id,
+                            'license_type'    => 'individual',
+                            'source_type'     => 'subscription',
+                            'subscription_id' => $sub->id,
+                            'expires_at'      => $expiresAt,
+                            'created_at'      => now(),
+                            'updated_at'      => now(),
+                        ]);
+                    }
+                }
             }
+
         } elseif (in_array($status, ['cancel', 'deny', 'expire'])) {
             $order->update(['status' => 'failed']);
         }

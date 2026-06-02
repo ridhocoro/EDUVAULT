@@ -10,6 +10,7 @@ import '../../order/screens/order_history_screen.dart';
 import '../../auth/screens/login_screen.dart';
 import '../../admin/screens/admin_dashboard_screen.dart';
 import '../../catalog/providers/catalog_provider.dart';
+import '../../subscription/providers/subscription_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -305,6 +306,7 @@ class ProfileScreen extends ConsumerWidget {
                   );
                   if (confirmed == true) {
                     await ref.read(authProvider.notifier).logout();
+                    ref.read(subscriptionProvider.notifier).reset();
                   }
                 },
                 child: Container(

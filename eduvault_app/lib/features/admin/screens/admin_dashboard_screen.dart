@@ -509,7 +509,7 @@ class _CategoriesTab extends ConsumerWidget {
                       title: Text(cat.name,
                           style: const TextStyle(
                               fontWeight: FontWeight.w600, fontSize: 14)),
-                      subtitle: Text(cat.slug,
+                      subtitle: Text(cat.slug ?? '',
                           style:
                               const TextStyle(fontSize: 11, color: _grey)),
                       trailing: Row(

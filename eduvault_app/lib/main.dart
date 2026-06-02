@@ -13,6 +13,8 @@ import 'features/order/providers/order_provider.dart';
 import 'features/catalog/screens/home_screen.dart';
 import 'features/library/screens/library_screen.dart';
 import 'features/auth/screens/profile_screen.dart';
+import 'features/subscription/screens/subscription_screen.dart';
+import 'features/subscription/providers/subscription_provider.dart';
 
 // ─── Singleton AppLinks + pending URI ────────────────────────────────
 // Diinisialisasi sebelum runApp agar tidak ada deeplink yang terlewat
@@ -105,6 +107,11 @@ class _EduVaultAppState extends ConsumerState<EduVaultApp> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<AuthState>(authProvider, (prev, next) {
+      if (next.isLoggedIn && !(prev?.isLoggedIn ?? false)) {
+        ref.read(subscriptionProvider.notifier).fetchMySubscription();
+      }
+    });
     return legacy.ChangeNotifierProvider(
       create: (_) => OrderProvider(),
       child: MaterialApp(
@@ -137,6 +144,7 @@ class _MainShellState extends ConsumerState<MainShell> {
   final List<Widget> _screens = const [
     HomeScreen(),
     LibraryScreen(),
+    SubscriptionScreen(),
     ProfileScreen(),
   ];
 
@@ -176,10 +184,16 @@ class _MainShellState extends ConsumerState<MainShell> {
                   onTap: () => setState(() => _currentIndex = 1),
                 ),
                 _NavItem(
-                  icon: Icons.person_rounded,
-                  label: 'Profil',
+                  icon: Icons.workspace_premium_outlined,
+                  label: 'Premium',
                   isActive: _currentIndex == 2,
                   onTap: () => setState(() => _currentIndex = 2),
+                ),
+                _NavItem(
+                  icon: Icons.person_rounded,
+                  label: 'Profil',
+                  isActive: _currentIndex == 3,
+                  onTap: () => setState(() => _currentIndex = 3),
                 ),
               ],
             ),
